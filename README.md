@@ -29,6 +29,7 @@ index.html        首页，12 个卡片（11 个游戏 + 1 个「赞助作者」
 sponsor/          赞助作者：一句引导语 + 赞赏码
 tetris/ wheel/ tarot/ 2048/ memory/ snake/ minesweeper/ gomoku/ breakout/ slide/ mole/
 assets/           站点公共样式、图标、分享缩略图
+assets/js/        公共音效模块 sfx.js
 tarot/assets/     塔罗页自己的样式和脚本
 tools/            自检脚本（需要 Node.js）
 开发文档/          设计说明、游戏说明、截图
@@ -63,6 +64,7 @@ git push
 - 塔罗的题目和文案：`tarot/assets/js/data.js`，改完跑 `node tools/check-data.js`
 - 主屏幕图标：`node tools/icon.js` 重新生成 `assets/icon-180.png`
 - 赞赏码：替换 `assets/img/pay.png`，文件名不变就不用改代码
+- 音效：只改 `assets/js/sfx.js` 里的音色表；每个游戏用 `SFX.play("名字")` 挑音效，静音开关全站共用一个
 
 站点结构、样式约定、验证流程见 [开发文档/站点说明.md](开发文档/站点说明.md)。
 

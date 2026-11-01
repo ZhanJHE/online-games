@@ -100,6 +100,7 @@
   <p class="game-tip">方向键或滑动 · 相同数字撞在一起会合并 · 凑到 2048 算赢</p>
 </div>
 
+<script src="../assets/js/sfx.js"></script>
 <script>
 (function () {
   "use strict";
@@ -208,6 +209,7 @@
   function move(dir) {
     if (busy || over) return;
     var moved = false;
+    var made2048 = false;
 
     newAt = [];
     mergedAt = [];
@@ -221,7 +223,7 @@
           merged.push(sum);
           mergedAt.push(line[merged.length - 1]);
           score += sum;
-          if (sum === 2048 && !won) { won = true; }
+          if (sum === 2048 && !won) { won = true; made2048 = true; }
           i++;
         } else {
           merged.push(vals[i]);
@@ -238,6 +240,10 @@
 
     if (!moved) return;
 
+    if (made2048) SFX.play("win");
+    else if (mergedAt.length) SFX.play("match");
+    else SFX.play("tick");
+
     addTile();
     render();
     busy = true;
@@ -250,6 +256,7 @@
     }
     if (!canMove()) {
       over = true;
+      SFX.play("lose");
       showOverlay("走不动了", "这一局 " + score + " 分", "重新开始");
     }
   }

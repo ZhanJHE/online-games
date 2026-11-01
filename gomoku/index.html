@@ -78,6 +78,7 @@
   <p class="game-tip">黑先白后，两人同屏轮流下 · 横、竖、斜任意方向连成五个就赢</p>
 </div>
 
+<script src="../assets/js/sfx.js"></script>
 <script>
 (function () {
   "use strict";
@@ -149,6 +150,7 @@
 
   function end(winner) {
     over = true;
+    SFX.play(winner === 0 ? "miss" : "win");
     overlay.classList.add("show");
     ovTitle.textContent = winner === 0 ? "和棋" : (winner === 1 ? "黑棋胜" : "白棋胜");
     ovText.textContent = winner === 0 ? "棋盘下满了，谁也没连成五个" : "共 " + history.length + " 手";
@@ -161,6 +163,7 @@
     cells[i].disabled = true;
     history.push({ i: i, p: turn });
     movesEl.textContent = String(history.length);
+    SFX.play("place");
 
     if (isWin(i, turn)) return end(turn);
     if (history.length === N * N) return end(0);
@@ -180,6 +183,7 @@
     overlay.classList.remove("show");
     turnEl.textContent = turn === 1 ? "黑" : "白";
     movesEl.textContent = String(history.length);
+    SFX.play("tick");
   }
 
   boardEl.addEventListener("click", function (e) {

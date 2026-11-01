@@ -92,6 +92,7 @@
   function choose(i, key, btn) {
     if (locked) return;
     locked = true;
+    SFX.play("select");
     answers[i] = key;
     document.querySelectorAll(".opt").forEach((o) => o.classList.remove("pick"));
     btn.classList.add("pick");
@@ -101,6 +102,7 @@
         renderQ();
       } else {
         idx = QUIZ.length;
+        SFX.play("match");
         showResult();
       }
     }, 260);
@@ -269,6 +271,7 @@
   /* ---------- 启动 ---------- */
 
   function startQuiz() {
+    SFX.play("flip");
     answers = {};
     idx = 0;
     const u = new URL(location.href);

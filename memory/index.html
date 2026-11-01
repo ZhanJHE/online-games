@@ -114,6 +114,7 @@
   <p class="game-tip">点两张牌，图案一样就配对成功 · 全部配完算赢</p>
 </div>
 
+<script src="../assets/js/sfx.js"></script>
 <script>
 (function () {
   "use strict";
@@ -213,6 +214,7 @@
     if (!started) startTimer();
 
     btn.classList.add("flipped");
+    SFX.play("flip");
 
     if (first === null) {
       first = { idx: idx, el: btn };
@@ -233,8 +235,10 @@
       first = null;
 
       if (matched === SYMBOLS.length) finish();
+      else SFX.play("match");
     } else {
       var a = first.el, b = btn;
+      SFX.play("miss");
       first = null;
       setTimeout(function () {
         a.classList.remove("flipped");
@@ -246,6 +250,7 @@
 
   function finish() {
     stopTimer();
+    SFX.play("win");
     var secs = Math.floor((Date.now() - started) / 1000);
     var best = readBest();
     var isBest = !best || moves < best;

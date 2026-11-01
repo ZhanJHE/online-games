@@ -87,6 +87,7 @@
   <p class="game-tip">点空格旁边的数字滑动 · 方向键也能推 · 把 1 到 15 按顺序排好</p>
 </div>
 
+<script src="../assets/js/sfx.js"></script>
 <script>
 (function () {
   "use strict";
@@ -189,6 +190,7 @@
     if (!solved()) return false;
     won = true;
     stopTimer();
+    SFX.play("win");
     var best = readBest();
     if (!best || moves < best) { best = moves; saveBest(best); }
     elBest.textContent = String(best);
@@ -212,7 +214,7 @@
     elMoves.textContent = String(moves);
     startTimer();
     render();
-    checkWin();
+    if (!checkWin()) SFX.play("tick");
   }
 
   function reset() {

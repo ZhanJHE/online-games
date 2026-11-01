@@ -59,6 +59,7 @@
   <p class="game-tip">← → 移动 · ↓ 加速 · ↑ 或 ⟳ 旋转 · 空格直接落下</p>
 </div>
 
+<script src="../assets/js/sfx.js"></script>
 <script>
 (function () {
   "use strict";
@@ -205,6 +206,7 @@
       }
     }
     if (cleared) {
+      SFX.play(cleared >= 4 ? "win" : "match");
       var table = [0, 100, 300, 500, 800];
       var level = 1 + Math.floor(lines / 10);
       score += table[cleared] * level;
@@ -279,6 +281,7 @@
 
   function gameOver() {
     over = true;
+    SFX.play("lose");
     ovTitle.textContent = "堆到顶了";
     ovText.textContent = "这一局 " + score + " 分，消了 " + lines + " 行";
     overlay.classList.add("show");

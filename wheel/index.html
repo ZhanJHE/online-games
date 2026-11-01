@@ -85,6 +85,7 @@
   <p class="game-tip">结果就是图个开心，别真的照做</p>
 </div>
 
+<script src="../assets/js/sfx.js"></script>
 <script>
 (function () {
   "use strict";
@@ -185,6 +186,7 @@
   function spin() {
     if (spinning) return;
     spinning = true;
+    SFX.play("spin");
     elSpin.disabled = true;
     elRes.textContent = "";
     elLabel.textContent = "转圈中…";
@@ -216,6 +218,7 @@
       elSpin.disabled = false;
       elLabel.textContent = "转盘说";
       elRes.textContent = window.__spinResult;
+      SFX.play("match");
     }
   }
 

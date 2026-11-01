@@ -1,7 +1,8 @@
 /* 全站自检：node tools/check-pages.js [baseUrl]
  *
  * 无头 Chrome 依次打开首页、赞助作者、11 个游戏，做结构断言和一次交互冒烟，
- * 收集 console 报错与未捕获异常，每页截图到 开发文档/预览/站点/。
+ * 游戏页额外检查音效模块和静音开关，收集 console 报错与未捕获异常，
+ * 每页截图到 开发文档/预览/站点/。
  * 不传参数时用本地 file://，传线上地址就检查线上。
  */
 
@@ -72,6 +73,8 @@ const CASES = [
       await sleep(150);
       const hud = await ev("document.getElementById('score').textContent");
       if (hud === null) throw new Error("分数栏缺失");
+      const sw = await ev("(function(){var b=document.querySelector('.sfx-toggle'); if(!b) return 'no'; b.click(); var v=b.getAttribute('aria-pressed'); b.click(); return v;})()");
+      if (sw !== "true") throw new Error("音效开关没切换：" + sw);
     }
   },
   {
@@ -333,6 +336,15 @@ async function main() {
 
       let ok = true;
       let msg = "";
+      // 游戏页都要有音效模块和开关；首页、赞助页不需要
+      if (c.path && c.path !== "sponsor/") {
+        const hasSfx = await ev("!!window.SFX");
+        const hasBtn = await ev("!!document.querySelector('.sfx-toggle')");
+        const audio = await ev("(function(){try{window.SFX.play('tick');}catch(e){return 'throw';}return (window.AudioContext||window.webkitAudioContext)?'ok':'no-audio';})()");
+        if (!hasSfx) { ok = false; msg = "音效模块没加载"; }
+        else if (!hasBtn) { ok = false; msg = "音效开关没挂上"; }
+        else if (audio !== "ok") { ok = false; msg = "音效播不出来：" + audio; }
+      }
       try {
         await c.run(ev);
       } catch (e) {

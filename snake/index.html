@@ -60,6 +60,7 @@
   <p class="game-tip">方向键或 WASD 转向 · 吃到红点变长 · 别撞墙、别咬到自己</p>
 </div>
 
+<script src="../assets/js/sfx.js"></script>
 <script>
 (function () {
   "use strict";
@@ -142,6 +143,7 @@
 
     if (head.x === food.x && head.y === food.y) {
       score += 10;
+      SFX.play("eat");
       elScore.textContent = score;
       if (score > best) { best = score; saveBest(best); elBest.textContent = best; }
       stepMs = Math.max(70, 140 - Math.floor(score / 50) * 8);
@@ -153,6 +155,7 @@
 
   function die(reason) {
     alive = false;
+    SFX.play("lose");
     ovText.textContent = reason + " · 这一局 " + score + " 分";
     overlay.classList.add("show");
   }

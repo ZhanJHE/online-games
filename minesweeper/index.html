@@ -93,6 +93,7 @@
   <p class="game-tip">点格子挖开 · 右键或长按插旗 · 数字是周围雷数 · 第一次点必定安全</p>
 </div>
 
+<script src="../assets/js/sfx.js"></script>
 <script>
 (function () {
   "use strict";
@@ -236,6 +237,7 @@
       flags += cell.flag ? 1 : -1;
       elMines.textContent = MINE_COUNT - flags;
       paint(r, c);
+      SFX.play("tick");
       return;
     }
 
@@ -256,7 +258,7 @@
 
     open(r, c);
     repaintAll();
-    checkWin();
+    if (!checkWin()) SFX.play("place");
   }
 
   function checkWin() {
@@ -266,12 +268,16 @@
       ovTitle.textContent = "清完了";
       ovText.textContent = "用时 " + elTime.textContent + " 秒";
       overlay.classList.add("show");
+      SFX.play("win");
+      return true;
     }
+    return false;
   }
 
   function lose(r, c) {
     ended = true;
     stopTimer();
+    SFX.play("boom");
     for (var rr = 0; rr < N; rr++)
       for (var cc = 0; cc < N; cc++)
         if (grid[rr][cc].mine) { grid[rr][cc].open = true; }

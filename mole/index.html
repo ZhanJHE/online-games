@@ -98,6 +98,7 @@
   <p class="game-tip">点冒头的地鼠得分 · 一轮 30 秒 · 一次最多冒两只</p>
 </div>
 
+<script src="../assets/js/sfx.js"></script>
 <script>
 (function () {
   "use strict";
@@ -218,8 +219,10 @@
     stopLoops();
     hideAll();
     var best = readBest();
-    if (score > best) { best = score; saveBest(best); }
+    var beat = score > best;
+    if (beat) { best = score; saveBest(best); }
     elBest.textContent = String(best);
+    SFX.play(beat ? "win" : "match");
     ovTitle.textContent = "时间到";
     ovText.textContent = "这一轮敲到 " + score + " 只 · 最高 " + best + " 只";
     overlay.classList.add("show");
@@ -232,6 +235,7 @@
     if (!holes[i].classList.contains("up")) return;
     score++;
     elScore.textContent = String(score);
+    SFX.play("eat");
     hide(i);
     h.classList.add("hit");
     setTimeout(function () { h.classList.remove("hit"); }, 180);

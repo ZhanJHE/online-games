@@ -53,6 +53,7 @@
   <p class="game-tip">← → / A D 移动挡板，也可以用手指拖 · 掉球扣一条命，三条命用完结束</p>
 </div>
 
+<script src="../assets/js/sfx.js"></script>
 <script>
 (function () {
   "use strict";
@@ -158,6 +159,7 @@
   function finish(won) {
     running = false;
     ended = true;
+    SFX.play(won ? "win" : "lose");
     if (score > best) { best = score; saveBest(best); elBest.textContent = String(best); }
     ovTitle.textContent = won ? "通关" : "没接住";
     ovText.textContent = "这一局 " + score + " 分 · 最高 " + best + " 分";
@@ -169,6 +171,7 @@
     lives--;
     elLives.textContent = String(lives);
     if (lives <= 0) { finish(false); return; }
+    SFX.play("miss");
     attachBall();
     serveTimer = 600;
   }
@@ -176,6 +179,7 @@
   function hitBrick(b) {
     b.alive = false;
     score += 10;
+    SFX.play("brick");
     elScore.textContent = String(score);
     if (aliveCount() === 0) finish(true);
   }
@@ -197,6 +201,7 @@
       ball.vx = SPEED * Math.sin(ang);
       ball.vy = -SPEED * Math.cos(ang);
       ball.y = PADDLE_Y - ball.r;
+      SFX.play("tick");
     }
 
     for (var i = 0; i < bricks.length; i++) {
