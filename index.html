@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F7F1E7">
-<title>小游戏合集</title>
-<meta name="description" content="7 个纯静态网页小游戏：俄罗斯方块、恋爱转盘、恋爱塔罗、2048、记忆翻牌、贪吃蛇、扫雷。">
+<title>RK的小游戏合集</title>
+<meta name="description" content="11 个纯静态网页小游戏：俄罗斯方块、恋爱转盘、恋爱塔罗、2048、记忆翻牌、贪吃蛇、扫雷、五子棋、打砖块、数字华容道、打地鼠。">
 <meta property="og:type" content="website">
-<meta property="og:title" content="小游戏合集">
-<meta property="og:description" content="7 个纯静态网页小游戏，点开就能玩。">
+<meta property="og:title" content="RK的小游戏合集">
+<meta property="og:description" content="11 个纯静态网页小游戏，点开即玩。">
 <meta property="og:image" content="https://zhanjhe.github.io/online-games/assets/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%232B2533'/%3E%3Cpath d='M16 6l3 7 7 3-7 3-3 7-3-7-7-3 7-3z' fill='%23C9A96A'/%3E%3C/svg%3E">
@@ -28,8 +28,8 @@
 
   <header class="home-top">
     <div class="home-kicker">MINI GAMES</div>
-    <h1 class="home-title">小游戏合集</h1>
-    <p class="home-sub">7 个小游戏，全部纯静态，点开就能玩</p>
+    <h1 class="home-title">RK的小游戏合集</h1>
+    <p class="home-sub"><span id="gameCount">11</span> 个小游戏，点开即玩</p>
     <div class="home-rule"><span>✷</span></div>
   </header>
 
@@ -113,7 +113,58 @@
       <span class="card-desc">9×9，10 颗雷，别点爆</span>
     </a>
 
-    <a class="card" href="sponsor/index.html" style="--i:7; --accent:#B08D57">
+    <a class="card" href="gomoku/index.html" style="--i:7; --accent:#7C6A55">
+      <span class="card-tag">GOMOKU</span>
+      <span class="card-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3.5" y="3.5" width="17" height="17"/><path d="M9 3.5v17M15 3.5v17M3.5 9h17M3.5 15h17"/>
+          <circle cx="9" cy="9" r="1.7" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.7"/>
+        </svg>
+      </span>
+      <span class="card-name">五子棋</span>
+      <span class="card-desc">横竖斜，先连成五个</span>
+    </a>
+
+    <a class="card" href="breakout/index.html" style="--i:8; --accent:#A65D4E">
+      <span class="card-tag">BREAKOUT</span>
+      <span class="card-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3.5" y="3.5" width="5" height="3"/><rect x="9.5" y="3.5" width="5" height="3"/><rect x="15.5" y="3.5" width="5" height="3"/>
+          <circle cx="12" cy="12" r="1.7"/><path d="M7 19.5h10"/>
+        </svg>
+      </span>
+      <span class="card-name">打砖块</span>
+      <span class="card-desc">挡板接球，把砖打光</span>
+    </a>
+
+    <a class="card" href="slide/index.html" style="--i:9; --accent:#4F7D7B">
+      <span class="card-tag">SLIDE</span>
+      <span class="card-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3.5" y="3.5" width="7" height="7"/><rect x="13.5" y="3.5" width="7" height="7"/>
+          <rect x="3.5" y="13.5" width="7" height="7"/><path d="M14 15.5v4M12 17.5h4"/>
+        </svg>
+      </span>
+      <span class="card-name">数字华容道</span>
+      <span class="card-desc">滑动数字，从 1 排到 15</span>
+    </a>
+
+    <a class="card" href="mole/index.html" style="--i:10; --accent:#8B6A3F">
+      <span class="card-tag">MOLE</span>
+      <span class="card-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <ellipse cx="12" cy="19.5" rx="7.5" ry="1.8"/>
+          <path d="M8 19.5v-3.1a4 4 0 0 1 8 0v3.1"/>
+          <circle cx="10.2" cy="14.6" r=".7" fill="currentColor" stroke="none"/>
+          <circle cx="13.8" cy="14.6" r=".7" fill="currentColor" stroke="none"/>
+          <path d="M10.8 16.6h2.4"/>
+        </svg>
+      </span>
+      <span class="card-name">打地鼠</span>
+      <span class="card-desc">30 秒，敲到更多老鼠</span>
+    </a>
+
+    <a class="card" href="sponsor/index.html" style="--i:11; --accent:#B08D57">
       <span class="card-tag">SPONSOR</span>
       <span class="card-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -133,6 +184,19 @@
   </footer>
 
 </div>
+
+<script>
+/* 小字里的数量按实际卡片算，加游戏不用再改这一行 */
+(function () {
+  var cards = document.querySelectorAll(".grid .card");
+  var n = 0;
+  for (var i = 0; i < cards.length; i++) {
+    if (cards[i].getAttribute("href") !== "sponsor/index.html") n++;
+  }
+  var el = document.getElementById("gameCount");
+  if (el) el.textContent = n;
+})();
+</script>
 
 </body>
 </html>

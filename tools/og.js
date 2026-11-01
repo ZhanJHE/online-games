@@ -55,11 +55,27 @@ async function main() {
     });
     await send("Page.navigate", { url: FILE_URL });
     await sleep(1400);
-    // 缩略图里不需要页脚小字，避免被裁
+    // 12 张卡在 630 高里放不下：压一压间距，必要时整体缩放，标题和全部卡片都要进画面
     await send("Runtime.evaluate", {
-      expression: "(function(){ var f=document.querySelector('.home-foot'); if(f) f.style.display='none'; return 1; })()"
+      expression: `(function () {
+        var st = document.createElement("style");
+        st.textContent = ".home-foot{display:none!important}" +
+          ".home-top{margin-bottom:16px}" +
+          ".home-rule{margin-top:12px}" +
+          ".grid{gap:10px}" +
+          ".card{min-height:120px;padding:14px 12px 12px}" +
+          ".card-icon{width:38px;height:38px;margin-bottom:2px}" +
+          ".card-icon svg{width:30px;height:30px}" +
+          ".card-name{font-size:16px}" +
+          ".card-desc{font-size:12px}";
+        document.head.appendChild(st);
+        var p = document.querySelector(".page");
+        var h = p ? p.scrollHeight : document.documentElement.scrollHeight;
+        if (h > 630) document.documentElement.style.zoom = String(630 / h);
+        return h;
+      })()`
     });
-    await sleep(200);
+    await sleep(300);
     const { data } = await send("Page.captureScreenshot", { format: "png" });
     fs.mkdirSync(path.dirname(OUT), { recursive: true });
     fs.writeFileSync(OUT, Buffer.from(data, "base64"));

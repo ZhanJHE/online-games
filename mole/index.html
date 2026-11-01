@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F1E7">
+<title>打地鼠 · RK的小游戏合集</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%232B2533'/%3E%3Cpath d='M16 6l3 7 7 3-7 3-3 7-3-7-7-3 7-3z' fill='%23C9A96A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/css/site.css">
+<style>
+  :root { --accent: #8B6A3F; }
+
+  .mo-board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    width: min(320px, 82vw);
+    aspect-ratio: 1;
+  }
+
+  .hole {
+    position: relative;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 70%, #E7DCC9, #EFE6D7 70%);
+    overflow: hidden;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .hole::after {
+    content: "";
+    position: absolute;
+    left: 14%;
+    right: 14%;
+    bottom: 12%;
+    height: 26%;
+    border-radius: 50%;
+    background: #D6C7AE;
+    box-shadow: inset 0 2px 4px rgba(43, 37, 51, .18);
+  }
+
+  .mole {
+    position: absolute;
+    left: 50%;
+    bottom: -58%;
+    width: 54%;
+    aspect-ratio: 1;
+    transform: translateX(-50%);
+    border-radius: 50% 50% 44% 44%;
+    background:
+      radial-gradient(circle at 34% 40%, #2B2533 0 2px, transparent 2.5px),
+      radial-gradient(circle at 66% 40%, #2B2533 0 2px, transparent 2.5px),
+      #9A7A52;
+    transition: bottom .12s cubic-bezier(.16, 1, .3, 1);
+    z-index: 2;
+  }
+
+  .hole.up .mole { bottom: 24%; }
+
+  .hole.hit { animation: hit .16s ease; }
+  @keyframes hit {
+    40% { transform: scale(.94); }
+    100% { transform: scale(1); }
+  }
+</style>
+</head>
+<body>
+
+<div class="page page--game">
+  <header class="game-top">
+    <a class="back" href="../index.html">← 返回</a>
+    <span class="game-title">打地鼠</span>
+    <span class="game-tag">MOLE</span>
+  </header>
+
+  <div class="hud">
+    <span>分数<b id="score">0</b></span>
+    <span>剩余<b id="time">30</b></span>
+    <span>最高<b id="best">0</b></span>
+    <button class="btn btn-sm ghost" id="restart" type="button">重开</button>
+  </div>
+
+  <main class="game-main">
+    <div class="stage">
+      <div class="mo-board" id="board" aria-label="打地鼠棋盘"></div>
+      <div class="overlay show" id="overlay">
+        <div class="overlay-card">
+          <div class="overlay-title" id="ovTitle">打地鼠</div>
+          <div class="overlay-text" id="ovText">30 秒一轮，敲到更多地鼠</div>
+          <button class="btn" id="start" type="button">开始</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <p class="game-tip">点冒头的地鼠得分 · 一轮 30 秒 · 一次最多冒两只</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var ROUND = 30;
+  var MAX_UP = 2;
+  var SPAWN_MS = 650;
+  var STAY_MIN = 700, STAY_MAX = 900;
+
+  var boardEl = document.getElementById("board");
+  var elScore = document.getElementById("score");
+  var elTime = document.getElementById("time");
+  var elBest = document.getElementById("best");
+  var overlay = document.getElementById("overlay");
+  var ovTitle = document.getElementById("ovTitle");
+  var ovText = document.getElementById("ovText");
+  var startBtn = document.getElementById("start");
+
+  var holes = [];
+  var active = {};
+  var score = 0;
+  var remain = ROUND;
+  var running = false;
+  var paused = false;
+  var spawnTimer = null;
+  var tickTimer = null;
+
+  for (var i = 0; i < 9; i++) {
+    var h = document.createElement("button");
+    h.type = "button";
+    h.className = "hole";
+    h.dataset.i = i;
+    h.setAttribute("aria-label", "第 " + (Math.floor(i / 3) + 1) + " 行第 " + (i % 3 + 1) + " 个洞口");
+    var m = document.createElement("span");
+    m.className = "mole";
+    h.appendChild(m);
+    boardEl.appendChild(h);
+    holes.push(h);
+  }
+
+  function readBest() {
+    try { return parseInt(localStorage.getItem("mole.best") || "0", 10) || 0; }
+    catch (e) { return 0; }
+  }
+  function saveBest(v) {
+    try { localStorage.setItem("mole.best", String(v)); } catch (e) {}
+  }
+
+  function upCount() {
+    var n = 0;
+    for (var k in active) if (Object.prototype.hasOwnProperty.call(active, k)) n++;
+    return n;
+  }
+
+  function hide(i) {
+    holes[i].classList.remove("up");
+    if (active[i]) { clearTimeout(active[i]); delete active[i]; }
+  }
+
+  function hideAll() {
+    for (var k in active) if (Object.prototype.hasOwnProperty.call(active, k)) hide(parseInt(k, 10));
+    active = {};
+    for (var i = 0; i < holes.length; i++) holes[i].classList.remove("up");
+  }
+
+  function showOne(i) {
+    holes[i].classList.add("up");
+    var stay = STAY_MIN + Math.random() * (STAY_MAX - STAY_MIN);
+    active[i] = setTimeout(function () { hide(i); }, stay);
+  }
+
+  function spawn() {
+    if (!running || paused) return;
+    if (upCount() >= MAX_UP) return;
+    var free = [];
+    for (var i = 0; i < holes.length; i++) {
+      if (!holes[i].classList.contains("up")) free.push(i);
+    }
+    if (!free.length) return;
+    showOne(free[Math.floor(Math.random() * free.length)]);
+  }
+
+  function startLoops() {
+    clearInterval(spawnTimer);
+    clearInterval(tickTimer);
+    spawnTimer = setInterval(spawn, SPAWN_MS);
+    tickTimer = setInterval(function () {
+      remain--;
+      elTime.textContent = String(remain);
+      if (remain <= 0) end();
+    }, 1000);
+  }
+
+  function stopLoops() {
+    clearInterval(spawnTimer);
+    clearInterval(tickTimer);
+    spawnTimer = null;
+    tickTimer = null;
+  }
+
+  function start() {
+    stopLoops();
+    hideAll();
+    score = 0;
+    remain = ROUND;
+    running = true;
+    paused = false;
+    elScore.textContent = "0";
+    elTime.textContent = String(ROUND);
+    overlay.classList.remove("show");
+    startBtn.textContent = "再来一局";
+    startLoops();
+    setTimeout(spawn, 300);
+  }
+
+  function end() {
+    running = false;
+    stopLoops();
+    hideAll();
+    var best = readBest();
+    if (score > best) { best = score; saveBest(best); }
+    elBest.textContent = String(best);
+    ovTitle.textContent = "时间到";
+    ovText.textContent = "这一轮敲到 " + score + " 只 · 最高 " + best + " 只";
+    overlay.classList.add("show");
+  }
+
+  boardEl.addEventListener("click", function (e) {
+    var h = e.target.closest(".hole");
+    if (!h || !running || paused) return;
+    var i = parseInt(h.dataset.i, 10);
+    if (!holes[i].classList.contains("up")) return;
+    score++;
+    elScore.textContent = String(score);
+    hide(i);
+    h.classList.add("hit");
+    setTimeout(function () { h.classList.remove("hit"); }, 180);
+  });
+
+  document.getElementById("restart").addEventListener("click", start);
+  startBtn.addEventListener("click", start);
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) {
+      paused = true;
+      if (running) {
+        stopLoops();
+        hideAll();
+      }
+    } else {
+      paused = false;
+      if (running) startLoops();
+    }
+  });
+
+  elBest.textContent = String(readBest());
+})();
+</script>
+
+</body>
+</html>

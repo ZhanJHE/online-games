@@ -1,6 +1,6 @@
 /* 全站自检：node tools/check-pages.js [baseUrl]
  *
- * 无头 Chrome 依次打开首页、赞助作者、7 个游戏，做结构断言和一次交互冒烟，
+ * 无头 Chrome 依次打开首页、赞助作者、11 个游戏，做结构断言和一次交互冒烟，
  * 收集 console 报错与未捕获异常，每页截图到 开发文档/预览/站点/。
  * 不传参数时用本地 file://，传线上地址就检查线上。
  */
@@ -31,12 +31,14 @@ const CASES = [
     label: "首页",
     async run(ev) {
       const n = await ev("document.querySelectorAll('.card').length");
-      if (n !== 8) throw new Error("卡片数 " + n + "，应为 8");
+      if (n !== 12) throw new Error("卡片数 " + n + "，应为 12");
       const links = await ev("document.querySelectorAll('a.card').length");
-      if (links !== 8) throw new Error("可点卡片数 " + links + "，应为 8");
-      const last = await ev("document.querySelectorAll('.card')[7].getAttribute('href')");
+      if (links !== 12) throw new Error("可点卡片数 " + links + "，应为 12");
+      const last = await ev("document.querySelectorAll('.card')[11].getAttribute('href')");
       if (!/sponsor/.test(last)) throw new Error("右下角不是赞助作者：" + last);
       const names = await ev("Array.from(document.querySelectorAll('.card-name')).map(e=>e.textContent).join(' / ')");
+      const want = ["五子棋", "打砖块", "数字华容道", "打地鼠", "赞助作者"];
+      for (const w of want) if (!names.includes(w)) throw new Error("首页缺卡片：" + w);
       console.log("   卡片：" + names);
     }
   },
@@ -164,6 +166,92 @@ const CASES = [
       if (boom > 0) throw new Error("第一次点击就踩雷了");
       console.log("   一挖挖开 " + open + " 格");
     }
+  },
+  {
+    name: "10-gomoku",
+    path: "gomoku/",
+    label: "五子棋",
+    async run(ev) {
+      const n = await ev("document.querySelectorAll('.gm-cell').length");
+      if (n !== 121) throw new Error("格子数 " + n);
+      await ev("document.querySelectorAll('.gm-cell')[60].click()");
+      await sleep(150);
+      const stones = await ev("document.querySelectorAll('.gm-cell.b').length");
+      if (stones !== 1) throw new Error("点下去没落子");
+      const turn = await ev("document.getElementById('turn').textContent");
+      if (turn !== "白") throw new Error("回合没切换：" + turn);
+      await ev("document.getElementById('undo').click()");
+      await sleep(100);
+      const back = await ev("document.querySelectorAll('.gm-cell.b').length");
+      if (back !== 0) throw new Error("悔棋没撤掉");
+    }
+  },
+  {
+    name: "11-breakout",
+    path: "breakout/",
+    label: "打砖块",
+    async run(ev) {
+      const w = await ev("document.getElementById('board').width");
+      if (!w) throw new Error("画布没有尺寸");
+      const hasScore = await ev("!!document.getElementById('score')");
+      if (!hasScore) throw new Error("分数栏缺失");
+      const prompt = await ev("document.getElementById('overlay').classList.contains('show')");
+      if (!prompt) throw new Error("开局没有提示");
+      await ev("document.getElementById('start').click()");
+      await sleep(700);
+      const hidden = await ev("!document.getElementById('overlay').classList.contains('show')");
+      if (!hidden) throw new Error("点开始后遮罩没关");
+      await ev("document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}))");
+      await sleep(200);
+      await ev("document.dispatchEvent(new KeyboardEvent('keyup',{key:'ArrowLeft',bubbles:true}))");
+    }
+  },
+  {
+    name: "12-slide",
+    path: "slide/",
+    label: "数字华容道",
+    async run(ev) {
+      const n = await ev("document.querySelectorAll('.sl-tile').length");
+      if (n !== 16) throw new Error("格子数 " + n);
+      const blanks = await ev("document.querySelectorAll('.sl-tile.blank').length");
+      if (blanks !== 1) throw new Error("空格数 " + blanks);
+      await ev(`(function(){
+        var t = Array.from(document.querySelectorAll('.sl-tile'));
+        var bi = t.findIndex(function (x) { return x.classList.contains('blank'); });
+        var x = bi % 4, y = (bi / 4) | 0, cand = [];
+        if (x > 0) cand.push(bi - 1);
+        if (x < 3) cand.push(bi + 1);
+        if (y > 0) cand.push(bi - 4);
+        if (y < 3) cand.push(bi + 4);
+        t[cand[0]].click();
+        return cand[0];
+      })()`);
+      await sleep(120);
+      const moves = await ev("document.getElementById('moves').textContent");
+      if (moves !== "1") throw new Error("步数没记上：" + moves);
+      const still = await ev("document.querySelectorAll('.sl-tile.blank').length");
+      if (still !== 1) throw new Error("滑完空格数不对：" + still);
+    }
+  },
+  {
+    name: "13-mole",
+    path: "mole/",
+    label: "打地鼠",
+    async run(ev) {
+      const n = await ev("document.querySelectorAll('.hole').length");
+      if (n !== 9) throw new Error("洞口数 " + n);
+      await ev("document.getElementById('start').click()");
+      let up = false;
+      for (let i = 0; i < 14 && !up; i++) {
+        await sleep(250);
+        up = await ev("!!document.querySelector('.hole.up')");
+      }
+      if (!up) throw new Error("3 秒内没有地鼠冒头");
+      await ev("document.querySelector('.hole.up').click()");
+      await sleep(150);
+      const score = await ev("document.getElementById('score').textContent");
+      if (score !== "1") throw new Error("敲中没加分：" + score);
+    }
   }
 ];
 
@@ -281,7 +369,7 @@ async function main() {
     const okRedirect = /tarot/.test(landed) && shown === "月亮";
     console.log((okRedirect ? "✓ " : "✗ ") + "老链接转发 → " + landed + " 显示：" + shown);
     if (!okRedirect) failures++;
-    await shot("10-old-link-redirect");
+    await shot("14-old-link-redirect");
 
     ws.close();
   } finally {

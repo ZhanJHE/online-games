@@ -1,8 +1,8 @@
-# 小游戏合集
+# RK的小游戏合集
 
 线上地址：<https://zhanjhe.github.io/online-games/>
 
-7 个网页小游戏，全部纯静态，点开就能玩。没有后端、没有框架、没有构建步骤。
+11 个网页小游戏，全部纯静态，点开即玩。没有后端、没有框架、没有构建步骤。
 
 | 游戏 | 说明 |
 | --- | --- |
@@ -13,6 +13,10 @@
 | [记忆翻牌](memory/index.html) | 翻两张，把图案配成一对 |
 | [贪吃蛇](snake/index.html) | 越吃越长，别撞墙别咬到自己 |
 | [扫雷](minesweeper/index.html) | 9×9 藏 10 颗雷，第一次点必定安全 |
+| [五子棋](gomoku/index.html) | 11×11，两人同屏，先连成五个胜 |
+| [打砖块](breakout/index.html) | 挡板接球，把砖打光，三条命 |
+| [数字华容道](slide/index.html) | 4×4 滑块，把 1 到 15 排好 |
+| [打地鼠](mole/index.html) | 30 秒一轮，敲到更多地鼠 |
 
 ## 本地打开
 
@@ -21,9 +25,9 @@
 ## 目录
 
 ```
-index.html        首页，8 个卡片（7 个游戏 + 1 个「赞助作者」）
+index.html        首页，12 个卡片（11 个游戏 + 1 个「赞助作者」）
 sponsor/          赞助作者：一句引导语 + 赞赏码
-tetris/ wheel/ tarot/ 2048/ memory/ snake/ minesweeper/
+tetris/ wheel/ tarot/ 2048/ memory/ snake/ minesweeper/ gomoku/ breakout/ slide/ mole/
 assets/           站点公共样式、图标、分享缩略图
 tarot/assets/     塔罗页自己的样式和脚本
 tools/            自检脚本（需要 Node.js）
@@ -35,12 +39,12 @@ tools/            自检脚本（需要 Node.js）
 ## 自检
 
 ```powershell
-node tools/check-pages.js   # 9 个页面：结构断言 + 交互冒烟 + 截图
+node tools/check-pages.js   # 13 个页面：结构断言 + 交互冒烟 + 截图
 node tools/check-data.js    # 塔罗题库均衡性（每张牌必须被选 9 次）
 node tools/live-check.js    # 同上，跑线上地址
 ```
 
-`check-pages.js` 用本机 Chrome 的无头模式跑，走完 9 个页面并截图到 `开发文档/预览/站点/`，有报错会非零退出。脚本里 Chrome 路径是写死的，换机器要改。
+`check-pages.js` 用本机 Chrome 的无头模式跑，走完 13 个页面并截图到 `开发文档/预览/站点/`，有报错会非零退出。脚本里 Chrome 路径是写死的，换机器要改。
 
 ## 部署
 

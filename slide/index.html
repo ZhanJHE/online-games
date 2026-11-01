@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F1E7">
+<title>数字华容道 · RK的小游戏合集</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%232B2533'/%3E%3Cpath d='M16 6l3 7 7 3-7 3-3 7-3-7-7-3 7-3z' fill='%23C9A96A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/css/site.css">
+<style>
+  :root { --accent: #4F7D7B; }
+
+  .sl-board {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    width: min(320px, 84vw);
+    aspect-ratio: 1;
+  }
+
+  .sl-tile {
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    background: var(--card);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 24px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: background .14s ease, border-color .14s ease, color .14s ease;
+  }
+
+  .sl-tile:hover { border-color: var(--accent); color: var(--accent); }
+  .sl-tile:active { background: var(--accent-soft); }
+
+  .sl-tile.blank {
+    background: transparent;
+    border-style: dashed;
+    border-color: rgba(43, 37, 51, .12);
+    color: transparent;
+    pointer-events: none;
+  }
+
+  .sl-tile.done {
+    border-color: var(--gold);
+    background: #FBF3E2;
+    color: var(--gold);
+  }
+
+  @media (max-width: 420px) {
+    .sl-tile { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page page--game">
+  <header class="game-top">
+    <a class="back" href="../index.html">← 返回</a>
+    <span class="game-title">数字华容道</span>
+    <span class="game-tag">SLIDE</span>
+  </header>
+
+  <div class="hud">
+    <span>步数<b id="moves">0</b></span>
+    <span>用时<b id="time">0</b></span>
+    <span>最好<b id="best">—</b></span>
+    <button class="btn btn-sm ghost" id="restart" type="button">重开</button>
+  </div>
+
+  <main class="game-main">
+    <div class="stage">
+      <div class="sl-board" id="board" role="grid" aria-label="数字华容道棋盘"></div>
+      <div class="overlay" id="overlay">
+        <div class="overlay-card">
+          <div class="overlay-title">排好了</div>
+          <div class="overlay-text" id="ovText"></div>
+          <button class="btn" id="ovBtn" type="button">再来一局</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <p class="game-tip">点空格旁边的数字滑动 · 方向键也能推 · 把 1 到 15 按顺序排好</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var SIZE = 4, N = SIZE * SIZE;
+
+  var boardEl = document.getElementById("board");
+  var elMoves = document.getElementById("moves");
+  var elTime = document.getElementById("time");
+  var elBest = document.getElementById("best");
+  var overlay = document.getElementById("overlay");
+  var ovText = document.getElementById("ovText");
+  var ovBtn = document.getElementById("ovBtn");
+
+  var arr = [];
+  var tiles = [];
+  var blank = N - 1;
+  var moves = 0;
+  var seconds = 0;
+  var timer = null;
+  var won = false;
+
+  for (var i = 0; i < N; i++) {
+    var t = document.createElement("button");
+    t.type = "button";
+    t.className = "sl-tile";
+    boardEl.appendChild(t);
+    tiles.push(t);
+  }
+
+  function readBest() {
+    try { return parseInt(localStorage.getItem("slide.best") || "0", 10) || 0; }
+    catch (e) { return 0; }
+  }
+  function saveBest(v) {
+    try { localStorage.setItem("slide.best", String(v)); } catch (e) {}
+  }
+
+  function solved() {
+    for (var i = 0; i < N - 1; i++) if (arr[i] !== i + 1) return false;
+    return arr[N - 1] === 0;
+  }
+
+  function neighbors(i) {
+    var x = i % SIZE, y = (i / SIZE) | 0;
+    var out = [];
+    if (x > 0) out.push(i - 1);
+    if (x < SIZE - 1) out.push(i + 1);
+    if (y > 0) out.push(i - SIZE);
+    if (y < SIZE - 1) out.push(i + SIZE);
+    return out;
+  }
+
+  function shuffle() {
+    var list = [];
+    for (var i = 1; i < N; i++) list.push(i);
+    list.push(0);
+
+    do {
+      arr = list.slice();
+      blank = N - 1;
+      for (var k = 0; k < 300; k++) {
+        var nb = neighbors(blank);
+        var pick = nb[Math.floor(Math.random() * nb.length)];
+        arr[blank] = arr[pick];
+        arr[pick] = 0;
+        blank = pick;
+      }
+    } while (solved());
+  }
+
+  function render() {
+    var isDone = solved();
+    for (var i = 0; i < N; i++) {
+      var t = tiles[i];
+      t.textContent = arr[i] ? String(arr[i]) : "";
+      var isBlank = arr[i] === 0;
+      t.classList.toggle("blank", isBlank);
+      t.classList.toggle("done", isDone && !isBlank);
+      t.disabled = isBlank;
+      t.setAttribute("aria-label", isBlank ? "空格" : "数字 " + arr[i]);
+    }
+  }
+
+  function tick() {
+    seconds++;
+    elTime.textContent = String(seconds);
+  }
+
+  function startTimer() {
+    if (timer) return;
+    timer = setInterval(tick, 1000);
+  }
+
+  function stopTimer() {
+    if (timer) { clearInterval(timer); timer = null; }
+  }
+
+  function checkWin() {
+    if (!solved()) return false;
+    won = true;
+    stopTimer();
+    var best = readBest();
+    if (!best || moves < best) { best = moves; saveBest(best); }
+    elBest.textContent = String(best);
+    ovText.textContent = "用了 " + moves + " 步，" + seconds + " 秒 · 最好 " + best + " 步";
+    overlay.classList.add("show");
+    render();
+    return true;
+  }
+
+  function move(i) {
+    if (won || arr[i] === 0) return;
+    var x = i % SIZE, y = (i / SIZE) | 0;
+    var bx = blank % SIZE, by = (blank / SIZE) | 0;
+    var adjacent = (Math.abs(x - bx) === 1 && y === by) || (Math.abs(y - by) === 1 && x === bx);
+    if (!adjacent) return;
+
+    arr[blank] = arr[i];
+    arr[i] = 0;
+    blank = i;
+    moves++;
+    elMoves.textContent = String(moves);
+    startTimer();
+    render();
+    checkWin();
+  }
+
+  function reset() {
+    won = false;
+    moves = 0;
+    seconds = 0;
+    stopTimer();
+    shuffle();
+    elMoves.textContent = "0";
+    elTime.textContent = "0";
+    overlay.classList.remove("show");
+    var best = readBest();
+    elBest.textContent = best ? String(best) : "—";
+    render();
+  }
+
+  boardEl.addEventListener("click", function (e) {
+    var t = e.target.closest(".sl-tile");
+    if (!t) return;
+    move(tiles.indexOf(t));
+  });
+
+  document.addEventListener("keydown", function (e) {
+    var map = {
+      ArrowLeft: [1, 0], ArrowRight: [-1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1]
+    };
+    var d = map[e.key];
+    if (!d) return;
+    e.preventDefault();
+    var bx = blank % SIZE, by = (blank / SIZE) | 0;
+    var sx = bx + d[0], sy = by + d[1];
+    if (sx < 0 || sy < 0 || sx >= SIZE || sy >= SIZE) return;
+    move(sy * SIZE + sx);
+  });
+
+  document.getElementById("restart").addEventListener("click", reset);
+  ovBtn.addEventListener("click", reset);
+
+  reset();
+})();
+</script>
+
+</body>
+</html>

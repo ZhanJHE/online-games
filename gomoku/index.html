@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F1E7">
+<title>五子棋 · RK的小游戏合集</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%232B2533'/%3E%3Cpath d='M16 6l3 7 7 3-7 3-3 7-3-7-7-3 7-3z' fill='%23C9A96A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/css/site.css">
+<style>
+  :root { --accent: #7C6A55; }
+
+  .gm-board {
+    display: grid;
+    grid-template-columns: repeat(11, 1fr);
+    width: min(360px, 88vw);
+    aspect-ratio: 1;
+    background: #FBF7EF;
+  }
+
+  .gm-cell {
+    position: relative;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: inset -1px -1px 0 rgba(43, 37, 51, .13);
+    cursor: pointer;
+  }
+
+  .gm-cell:last-child { box-shadow: none; }
+
+  .gm-cell::after {
+    content: "";
+    width: 76%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    transform: scale(0);
+    transition: transform .14s cubic-bezier(.16, 1, .3, 1), background .14s ease;
+  }
+
+  .gm-cell:not(:disabled):hover::after { background: var(--accent-soft); transform: scale(.36); }
+  .gm-cell.b::after { background: #2B2533; transform: scale(1); }
+  .gm-cell.w::after { background: #FFFCF6; box-shadow: inset 0 0 0 1.5px #2B2533; transform: scale(1); }
+  .gm-cell:disabled { cursor: default; }
+</style>
+</head>
+<body>
+
+<div class="page page--game">
+  <header class="game-top">
+    <a class="back" href="../index.html">← 返回</a>
+    <span class="game-title">五子棋</span>
+    <span class="game-tag">GOMOKU</span>
+  </header>
+
+  <div class="hud">
+    <span>轮到<b id="turn">黑</b></span>
+    <span>步数<b id="moves">0</b></span>
+    <button class="btn btn-sm ghost" id="undo" type="button">悔棋</button>
+    <button class="btn btn-sm ghost" id="restart" type="button">重开</button>
+  </div>
+
+  <main class="game-main">
+    <div class="stage">
+      <div class="gm-board" id="board" role="grid" aria-label="五子棋棋盘"></div>
+      <div class="overlay" id="overlay">
+        <div class="overlay-card">
+          <div class="overlay-title" id="ovTitle">黑棋胜</div>
+          <div class="overlay-text" id="ovText"></div>
+          <button class="btn" id="ovBtn" type="button">再来一局</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <p class="game-tip">黑先白后，两人同屏轮流下 · 横、竖、斜任意方向连成五个就赢</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var N = 11;
+
+  var boardEl = document.getElementById("board");
+  var turnEl = document.getElementById("turn");
+  var movesEl = document.getElementById("moves");
+  var overlay = document.getElementById("overlay");
+  var ovTitle = document.getElementById("ovTitle");
+  var ovText = document.getElementById("ovText");
+  var ovBtn = document.getElementById("ovBtn");
+
+  var board = [];
+  var cells = [];
+  var history = [];
+  var turn = 1;
+  var over = false;
+
+  for (var i = 0; i < N * N; i++) {
+    board.push(0);
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "gm-cell";
+    b.dataset.i = i;
+    b.setAttribute("aria-label", "第 " + (Math.floor(i / N) + 1) + " 行第 " + (i % N + 1) + " 列");
+    boardEl.appendChild(b);
+    cells.push(b);
+  }
+
+  function reset() {
+    for (var i = 0; i < N * N; i++) {
+      board[i] = 0;
+      cells[i].classList.remove("b", "w");
+      cells[i].disabled = false;
+    }
+    history = [];
+    turn = 1;
+    over = false;
+    overlay.classList.remove("show");
+    turnEl.textContent = "黑";
+    movesEl.textContent = "0";
+  }
+
+  function lineLen(i, p, dx, dy) {
+    var x = i % N, y = (i / N) | 0;
+    var n = 1;
+    for (var s = 1; s < N; s++) {
+      var nx = x + dx * s, ny = y + dy * s;
+      if (nx < 0 || ny < 0 || nx >= N || ny >= N || board[ny * N + nx] !== p) break;
+      n++;
+    }
+    for (var s2 = 1; s2 < N; s2++) {
+      var mx = x - dx * s2, my = y - dy * s2;
+      if (mx < 0 || my < 0 || mx >= N || my >= N || board[my * N + mx] !== p) break;
+      n++;
+    }
+    return n;
+  }
+
+  function isWin(i, p) {
+    var dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+    for (var k = 0; k < dirs.length; k++) {
+      if (lineLen(i, p, dirs[k][0], dirs[k][1]) >= 5) return true;
+    }
+    return false;
+  }
+
+  function end(winner) {
+    over = true;
+    overlay.classList.add("show");
+    ovTitle.textContent = winner === 0 ? "和棋" : (winner === 1 ? "黑棋胜" : "白棋胜");
+    ovText.textContent = winner === 0 ? "棋盘下满了，谁也没连成五个" : "共 " + history.length + " 手";
+  }
+
+  function place(i) {
+    if (over || board[i]) return;
+    board[i] = turn;
+    cells[i].classList.add(turn === 1 ? "b" : "w");
+    cells[i].disabled = true;
+    history.push({ i: i, p: turn });
+    movesEl.textContent = String(history.length);
+
+    if (isWin(i, turn)) return end(turn);
+    if (history.length === N * N) return end(0);
+
+    turn = 3 - turn;
+    turnEl.textContent = turn === 1 ? "黑" : "白";
+  }
+
+  function undo() {
+    if (!history.length) return;
+    var last = history.pop();
+    board[last.i] = 0;
+    cells[last.i].classList.remove("b", "w");
+    cells[last.i].disabled = false;
+    turn = last.p;
+    over = false;
+    overlay.classList.remove("show");
+    turnEl.textContent = turn === 1 ? "黑" : "白";
+    movesEl.textContent = String(history.length);
+  }
+
+  boardEl.addEventListener("click", function (e) {
+    var t = e.target.closest(".gm-cell");
+    if (!t) return;
+    place(parseInt(t.dataset.i, 10));
+  });
+
+  document.getElementById("undo").addEventListener("click", undo);
+  document.getElementById("restart").addEventListener("click", reset);
+  ovBtn.addEventListener("click", reset);
+
+  reset();
+})();
+</script>
+
+</body>
+</html>

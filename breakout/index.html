@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F1E7">
+<title>打砖块 · RK的小游戏合集</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%232B2533'/%3E%3Cpath d='M16 6l3 7 7 3-7 3-3 7-3-7-7-3 7-3z' fill='%23C9A96A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/css/site.css">
+<style>
+  :root { --accent: #A65D4E; }
+
+  #board {
+    display: block;
+    width: min(320px, 86vw);
+    height: auto;
+    aspect-ratio: 320 / 420;
+    background: #FBF7EF;
+    touch-action: none;
+    cursor: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="page page--game">
+  <header class="game-top">
+    <a class="back" href="../index.html">← 返回</a>
+    <span class="game-title">打砖块</span>
+    <span class="game-tag">BREAKOUT</span>
+  </header>
+
+  <div class="hud">
+    <span>分数<b id="score">0</b></span>
+    <span>生命<b id="lives">3</b></span>
+    <span>最高<b id="best">0</b></span>
+    <button class="btn btn-sm ghost" id="restart" type="button">重开</button>
+  </div>
+
+  <main class="game-main">
+    <div class="stage">
+      <canvas id="board" width="320" height="420" aria-label="打砖块游戏区"></canvas>
+      <div class="overlay show" id="overlay">
+        <div class="overlay-card">
+          <div class="overlay-title" id="ovTitle">打砖块</div>
+          <div class="overlay-text" id="ovText">挡板接球，把砖打光</div>
+          <button class="btn" id="start" type="button">开始</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <p class="game-tip">← → / A D 移动挡板，也可以用手指拖 · 掉球扣一条命，三条命用完结束</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var W = 320, H = 420;
+  var canvas = document.getElementById("board");
+  var ctx = canvas.getContext("2d");
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.scale(dpr, dpr);
+
+  var elScore = document.getElementById("score");
+  var elLives = document.getElementById("lives");
+  var elBest = document.getElementById("best");
+  var overlay = document.getElementById("overlay");
+  var ovTitle = document.getElementById("ovTitle");
+  var ovText = document.getElementById("ovText");
+  var startBtn = document.getElementById("start");
+
+  var COLS = 8, ROWS = 5, BRICK_H = 18, TOP = 34;
+  var BRICK_COLORS = ["#B4626B", "#B98A5E", "#6C6795", "#D9A94E", "#5F8FA8"];
+  var PADDLE_W = 64, PADDLE_H = 8, PADDLE_Y = H - 26;
+  var BALL_R = 5;
+  var SPEED = 0.32;
+
+  var bricks = [];
+  var paddleX = (W - PADDLE_W) / 2;
+  var ball = { x: W / 2, y: PADDLE_Y - BALL_R - 1, r: BALL_R, vx: 0, vy: 0 };
+  var lives = 3, score = 0, best = 0;
+  var running = false, ended = false;
+  var serveTimer = 0;
+  var last = 0, acc = 0;
+  var keys = { left: false, right: false };
+
+  function readBest() {
+    try { return parseInt(localStorage.getItem("breakout.best") || "0", 10) || 0; }
+    catch (e) { return 0; }
+  }
+  function saveBest(v) {
+    try { localStorage.setItem("breakout.best", String(v)); } catch (e) {}
+  }
+
+  function buildBricks() {
+    bricks = [];
+    var bw = W / COLS;
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        bricks.push({
+          x: c * bw, y: TOP + r * (BRICK_H + 4),
+          w: bw - 2, h: BRICK_H,
+          alive: true,
+          color: BRICK_COLORS[r % BRICK_COLORS.length]
+        });
+      }
+    }
+  }
+
+  function aliveCount() {
+    var n = 0;
+    for (var i = 0; i < bricks.length; i++) if (bricks[i].alive) n++;
+    return n;
+  }
+
+  function attachBall() {
+    ball.x = paddleX + PADDLE_W / 2;
+    ball.y = PADDLE_Y - BALL_R - 1;
+    ball.vx = 0;
+    ball.vy = 0;
+  }
+
+  function launch() {
+    var ang = (Math.random() - 0.5) * 0.9;
+    ball.vx = SPEED * Math.sin(ang);
+    ball.vy = -SPEED * Math.cos(ang);
+  }
+
+  function reset() {
+    buildBricks();
+    paddleX = (W - PADDLE_W) / 2;
+    lives = 3;
+    score = 0;
+    best = readBest();
+    ended = false;
+    running = false;
+    serveTimer = 0;
+    elScore.textContent = "0";
+    elLives.textContent = "3";
+    elBest.textContent = String(best);
+    attachBall();
+    overlay.classList.remove("show");
+    startBtn.textContent = "开始";
+    draw();
+  }
+
+  function start() {
+    if (ended) reset();
+    running = true;
+    overlay.classList.remove("show");
+    launch();
+  }
+
+  function finish(won) {
+    running = false;
+    ended = true;
+    if (score > best) { best = score; saveBest(best); elBest.textContent = String(best); }
+    ovTitle.textContent = won ? "通关" : "没接住";
+    ovText.textContent = "这一局 " + score + " 分 · 最高 " + best + " 分";
+    startBtn.textContent = "再来一局";
+    overlay.classList.add("show");
+  }
+
+  function loseLife() {
+    lives--;
+    elLives.textContent = String(lives);
+    if (lives <= 0) { finish(false); return; }
+    attachBall();
+    serveTimer = 600;
+  }
+
+  function hitBrick(b) {
+    b.alive = false;
+    score += 10;
+    elScore.textContent = String(score);
+    if (aliveCount() === 0) finish(true);
+  }
+
+  function stepBall(dt) {
+    ball.x += ball.vx * dt;
+    ball.y += ball.vy * dt;
+
+    if (ball.x - ball.r < 0) { ball.x = ball.r; ball.vx = Math.abs(ball.vx); }
+    if (ball.x + ball.r > W) { ball.x = W - ball.r; ball.vx = -Math.abs(ball.vx); }
+    if (ball.y - ball.r < 0) { ball.y = ball.r; ball.vy = Math.abs(ball.vy); }
+
+    if (ball.vy > 0 &&
+        ball.y + ball.r >= PADDLE_Y && ball.y - ball.r <= PADDLE_Y + PADDLE_H &&
+        ball.x >= paddleX - ball.r && ball.x <= paddleX + PADDLE_W + ball.r) {
+      var rel = (ball.x - (paddleX + PADDLE_W / 2)) / (PADDLE_W / 2);
+      rel = Math.max(-1, Math.min(1, rel));
+      var ang = rel * 1.05;
+      ball.vx = SPEED * Math.sin(ang);
+      ball.vy = -SPEED * Math.cos(ang);
+      ball.y = PADDLE_Y - ball.r;
+    }
+
+    for (var i = 0; i < bricks.length; i++) {
+      var b = bricks[i];
+      if (!b.alive) continue;
+      if (ball.x + ball.r > b.x && ball.x - ball.r < b.x + b.w &&
+          ball.y + ball.r > b.y && ball.y - ball.r < b.y + b.h) {
+        var ox = Math.min(ball.x + ball.r - b.x, b.x + b.w - (ball.x - ball.r));
+        var oy = Math.min(ball.y + ball.r - b.y, b.y + b.h - (ball.y - ball.r));
+        if (ox < oy) ball.vx = -ball.vx; else ball.vy = -ball.vy;
+        hitBrick(b);
+        break;
+      }
+    }
+
+    if (ball.y - ball.r > H) loseLife();
+  }
+
+  function update(dt) {
+    if (keys.left) paddleX -= 0.36 * dt;
+    if (keys.right) paddleX += 0.36 * dt;
+    paddleX = Math.max(0, Math.min(W - PADDLE_W, paddleX));
+
+    if (!running) return;
+
+    if (serveTimer > 0) {
+      serveTimer -= dt;
+      attachBall();
+      if (serveTimer <= 0) launch();
+      return;
+    }
+
+    var steps = Math.max(1, Math.ceil(dt / 6));
+    var sdt = dt / steps;
+    for (var s = 0; s < steps; s++) {
+      if (!running) break;
+      stepBall(sdt);
+    }
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function draw() {
+    ctx.fillStyle = "#FBF7EF";
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = "rgba(43,37,51,.08)";
+    ctx.setLineDash([4, 6]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, H - 8.5);
+    ctx.lineTo(W, H - 8.5);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    for (var i = 0; i < bricks.length; i++) {
+      var b = bricks[i];
+      if (!b.alive) continue;
+      ctx.fillStyle = b.color;
+      roundRect(b.x, b.y, b.w, b.h, 2);
+      ctx.fillStyle = "rgba(255,255,255,.22)";
+      ctx.fillRect(b.x + 2, b.y + 2, b.w - 4, 2);
+    }
+
+    ctx.fillStyle = "#7C6A55";
+    roundRect(paddleX, PADDLE_Y, PADDLE_W, PADDLE_H, 4);
+
+    ctx.fillStyle = "#2B2533";
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function loop(ts) {
+    if (!last) last = ts;
+    var dt = ts - last;
+    last = ts;
+    if (dt > 48) dt = 48;
+
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  canvas.addEventListener("pointermove", function (e) {
+    var rect = canvas.getBoundingClientRect();
+    var x = (e.clientX - rect.left) / rect.width * W;
+    paddleX = Math.max(0, Math.min(W - PADDLE_W, x - PADDLE_W / 2));
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") { keys.left = true; e.preventDefault(); }
+    if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") { keys.right = true; e.preventDefault(); }
+  });
+  document.addEventListener("keyup", function (e) {
+    if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") keys.left = false;
+    if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") keys.right = false;
+  });
+
+  startBtn.addEventListener("click", function () {
+    if (ended) reset();
+    start();
+  });
+  document.getElementById("restart").addEventListener("click", function () {
+    reset();
+    start();
+  });
+
+  best = readBest();
+  elBest.textContent = String(best);
+  reset();
+  overlay.classList.add("show");
+  requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>
