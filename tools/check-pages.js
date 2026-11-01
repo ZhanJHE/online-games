@@ -1,6 +1,7 @@
 /* 全站自检：node tools/check-pages.js [baseUrl]
  *
- * 无头 Chrome 依次打开首页、赞助作者、11 个游戏，做结构断言和一次交互冒烟，
+ * 页面清单来自 assets/data/games.js，每个游戏的断言在 tools/smoke.js。
+ * 依次打开首页、23 个游戏、赞助作者，做结构断言和一次交互冒烟，
  * 游戏页额外检查音效模块和静音开关，收集 console 报错与未捕获异常，
  * 每页截图到 开发文档/预览/站点/。
  * 不传参数时用本地 file://，传线上地址就检查线上。
@@ -9,6 +10,9 @@
 const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+
+const { GAMES, CATS } = require("../assets/data/games.js");
+const SMOKE = require("./smoke.js");
 
 const CHROME = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 const PORT = 9336;
@@ -23,28 +27,91 @@ const OUT = path.join(ROOT, "开发文档", "预览", IS_REMOTE ? "站点-线上
 const url = (p) => BASE + p + (p === "" || p.endsWith("/") ? "index.html" : "");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const pad2 = (n) => String(n).padStart(2, "0");
 
-/* 每个页面：进入后等一会儿，跑断言，最后截图 */
+/* ---------- 数据自检 ---------- */
+
+const GAME_LIST = GAMES.filter((g) => g.cat !== "sponsor");
+const SPONSOR = GAMES.find((g) => g.id === "sponsor");
+const CAT_IDS = CATS.map((c) => c.id);
+
+if (!SPONSOR) throw new Error("games.js 里找不到赞助作者卡片");
+if (GAMES[GAMES.length - 1].id !== "sponsor") throw new Error("赞助作者必须排在最后");
+
+const seen = new Set();
+for (const g of GAMES) {
+  if (seen.has(g.id)) throw new Error("游戏 id 重复：" + g.id);
+  seen.add(g.id);
+  if (g.cat !== "sponsor" && CAT_IDS.indexOf(g.cat) === -1) throw new Error(g.id + " 的分类不存在：" + g.cat);
+  if (!g.icon || g.icon.indexOf("<svg") === -1) throw new Error(g.id + " 缺图标");
+  if (!/^#[0-9A-Fa-f]{6}$/.test(g.accent)) throw new Error(g.id + " 主题色不合法：" + g.accent);
+  if (!fs.existsSync(path.join(ROOT, g.href))) throw new Error(g.id + " 的页面不存在：" + g.href);
+  if (g.cat !== "sponsor" && typeof SMOKE[g.id] !== "function") {
+    throw new Error("tools/smoke.js 缺断言：" + g.id);
+  }
+}
+
+/* ---------- 页面 ---------- */
+
 const CASES = [
   {
     name: "01-home",
     path: "",
     label: "首页",
     async run(ev) {
+      const total = GAME_LIST.length + 1;
       const n = await ev("document.querySelectorAll('.card').length");
-      if (n !== 12) throw new Error("卡片数 " + n + "，应为 12");
+      if (n !== total) throw new Error("卡片数 " + n + "，应为 " + total);
       const links = await ev("document.querySelectorAll('a.card').length");
-      if (links !== 12) throw new Error("可点卡片数 " + links + "，应为 12");
-      const last = await ev("document.querySelectorAll('.card')[11].getAttribute('href')");
+      if (links !== total) throw new Error("可点卡片数 " + links);
+      const last = await ev("document.querySelectorAll('.card')[document.querySelectorAll('.card').length - 1].getAttribute('href')");
       if (!/sponsor/.test(last)) throw new Error("右下角不是赞助作者：" + last);
+      const count = await ev("document.getElementById('gameCount').textContent");
+      if (count !== String(GAME_LIST.length)) throw new Error("数量文案 " + count + "，应为 " + GAME_LIST.length);
       const names = await ev("Array.from(document.querySelectorAll('.card-name')).map(e=>e.textContent).join(' / ')");
-      const want = ["五子棋", "打砖块", "数字华容道", "打地鼠", "赞助作者"];
+      const want = ["井字棋", "四子棋", "乒乓", "别踩白块", "打靶", "反应灯", "舒尔特方格", "记忆序列", "推箱子", "24 点", "猜数字", "汉诺塔", "赞助作者"];
       for (const w of want) if (!names.includes(w)) throw new Error("首页缺卡片：" + w);
+
+      const setQ = (v) => `(function(v){var q=document.getElementById('q');q.value=v;q.dispatchEvent(new Event('input',{bubbles:true}));return document.querySelectorAll('.card').length;})(decodeURIComponent('${encodeURIComponent(v)}'))`;
+
+      const q1 = await ev(setQ("棋"));
+      if (q1 !== 3) throw new Error("搜「棋」应得 3 张，实际 " + q1);
+      const sponsorVisible = await ev("!!document.querySelector('.card[href*=\"sponsor\"]')");
+      if (sponsorVisible) throw new Error("搜索时赞助卡不该出现");
+
+      const q2 = await ev(setQ("zzz"));
+      if (q2 !== 0) throw new Error("搜「zzz」应为 0 张，实际 " + q2);
+      const emptyShown = await ev("!document.getElementById('empty').hasAttribute('hidden')");
+      if (!emptyShown) throw new Error("空态没有出现");
+
+      await ev(setQ(""));
+      await ev("document.querySelector('.cat[data-cat=\"arcade\"]').click()");
+      const arcade = await ev("document.querySelectorAll('.card').length");
+      if (arcade !== 6) throw new Error("街机分类应为 6 张，实际 " + arcade);
+
+      await ev("document.querySelector('.cat[data-cat=\"all\"]').click()");
+      const all = await ev("document.querySelectorAll('.card').length");
+      if (all !== total) throw new Error("回到全部应为 " + total + " 张，实际 " + all);
+
+      const hintHidden = await ev("document.getElementById('findHint').hasAttribute('hidden')");
+      if (!hintHidden) throw new Error("清除筛选后提示应该收起");
+
+      await sleep(1200);
       console.log("   卡片：" + names);
     }
   },
+
+  ...GAME_LIST.map((g, i) => ({
+    name: pad2(i + 2) + "-" + g.id,
+    path: g.href.replace(/index\.html$/, ""),
+    label: g.name,
+    async run(ev) {
+      await SMOKE[g.id](ev, sleep);
+    }
+  })),
+
   {
-    name: "02-sponsor",
+    name: pad2(GAME_LIST.length + 2) + "-sponsor",
     path: "sponsor/",
     label: "赞助作者",
     async run(ev) {
@@ -57,203 +124,6 @@ const CASES = [
       if (!loaded) throw new Error("赞赏码图没加载出来");
       const prose = await ev("!!document.querySelector('.prose')");
       if (prose) throw new Error("正文没删干净");
-      if (!loaded) throw new Error("赞赏码图没加载出来");
-    }
-  },
-  {
-    name: "03-tetris",
-    path: "tetris/",
-    label: "俄罗斯方块",
-    async run(ev) {
-      const w = await ev("document.getElementById('board').width");
-      if (!w) throw new Error("画布没有尺寸");
-      await ev("document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true}))");
-      await sleep(150);
-      await ev("document.dispatchEvent(new KeyboardEvent('keydown',{key:' ',bubbles:true}))");
-      await sleep(150);
-      const hud = await ev("document.getElementById('score').textContent");
-      if (hud === null) throw new Error("分数栏缺失");
-      const sw = await ev("(function(){var b=document.querySelector('.sfx-toggle'); if(!b) return 'no'; b.click(); var v=b.getAttribute('aria-pressed'); b.click(); return v;})()");
-      if (sw !== "true") throw new Error("音效开关没切换：" + sw);
-    }
-  },
-  {
-    name: "04-wheel",
-    path: "wheel/",
-    label: "恋爱转盘",
-    async run(ev) {
-      const w = await ev("document.getElementById('wheel').width");
-      if (!w) throw new Error("画布没有尺寸");
-      await ev("document.getElementById('spin').click()");
-      await sleep(4600);
-      const res = await ev("document.getElementById('resText').textContent");
-      if (!res) throw new Error("转完没有出结果");
-      console.log("   转盘结果：" + res);
-    }
-  },
-  {
-    name: "05-tarot",
-    path: "tarot/",
-    label: "恋爱塔罗",
-    async run(ev) {
-      const n = await ev("QUIZ.length");
-      if (n !== 24) throw new Error("题目数 " + n);
-      const cards = await ev("Object.keys(CARDS).length");
-      if (cards !== 8) throw new Error("牌面数 " + cards);
-      const back = await ev("!!document.querySelector('.cover-back')");
-      if (!back) throw new Error("缺少返回合集的入口");
-      const donate = await ev("!!document.querySelector('.donate')");
-      if (donate) throw new Error("赞赏码还在，应该先屏蔽");
-    }
-  },
-  {
-    name: "06-2048",
-    path: "2048/",
-    label: "2048",
-    async run(ev) {
-      const cells = await ev("document.querySelectorAll('.cell').length");
-      if (cells !== 16) throw new Error("格子数 " + cells);
-      const before = await ev("document.querySelectorAll('.cell:not(:empty)').length");
-      if (before !== 2) throw new Error("开局数字块数不对：" + before);
-      // 单个方向可能刚好贴着边不动，四个方向都试一遍
-      for (const key of ["ArrowLeft", "ArrowUp", "ArrowDown", "ArrowRight"]) {
-        await ev("document.dispatchEvent(new KeyboardEvent('keydown',{key:'" + key + "',bubbles:true}))");
-        await sleep(160);
-      }
-      const after = await ev("document.querySelectorAll('.cell:not(:empty)').length");
-      if (after < 3) throw new Error("走了四步还是 " + after + " 块数字，没生成新块");
-    }
-  },
-  {
-    name: "07-memory",
-    path: "memory/",
-    label: "记忆翻牌",
-    async run(ev) {
-      const n = await ev("document.querySelectorAll('.mem-card').length");
-      if (n !== 16) throw new Error("牌数 " + n);
-      await ev("document.querySelectorAll('.mem-card')[0].click()");
-      await sleep(120);
-      await ev("document.querySelectorAll('.mem-card')[1].click()");
-      await sleep(200);
-      const flipped = await ev("document.querySelectorAll('.mem-card.flipped,.mem-card.matched').length");
-      if (flipped < 1) throw new Error("点击后没有翻面");
-      const moves = await ev("document.getElementById('moves').textContent");
-      if (moves !== "1") throw new Error("步数没记上：" + moves);
-    }
-  },
-  {
-    name: "08-snake",
-    path: "snake/",
-    label: "贪吃蛇",
-    async run(ev) {
-      const w = await ev("document.getElementById('board').width");
-      if (!w) throw new Error("画布没有尺寸");
-      await ev("document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}))");
-      await sleep(500);
-      const score = await ev("document.getElementById('score').textContent");
-      if (score === null) throw new Error("分数栏缺失");
-    }
-  },
-  {
-    name: "09-minesweeper",
-    path: "minesweeper/",
-    label: "扫雷",
-    async run(ev) {
-      const n = await ev("document.querySelectorAll('.ms-cell').length");
-      if (n !== 81) throw new Error("格子数 " + n);
-      await ev("document.querySelectorAll('.ms-cell')[40].click()");
-      await sleep(250);
-      const open = await ev("document.querySelectorAll('.ms-cell.open').length");
-      if (open < 1) throw new Error("点开后没有挖开的格子");
-      const boom = await ev("document.querySelectorAll('.ms-cell.boom').length");
-      if (boom > 0) throw new Error("第一次点击就踩雷了");
-      console.log("   一挖挖开 " + open + " 格");
-    }
-  },
-  {
-    name: "10-gomoku",
-    path: "gomoku/",
-    label: "五子棋",
-    async run(ev) {
-      const n = await ev("document.querySelectorAll('.gm-cell').length");
-      if (n !== 121) throw new Error("格子数 " + n);
-      await ev("document.querySelectorAll('.gm-cell')[60].click()");
-      await sleep(150);
-      const stones = await ev("document.querySelectorAll('.gm-cell.b').length");
-      if (stones !== 1) throw new Error("点下去没落子");
-      const turn = await ev("document.getElementById('turn').textContent");
-      if (turn !== "白") throw new Error("回合没切换：" + turn);
-      await ev("document.getElementById('undo').click()");
-      await sleep(100);
-      const back = await ev("document.querySelectorAll('.gm-cell.b').length");
-      if (back !== 0) throw new Error("悔棋没撤掉");
-    }
-  },
-  {
-    name: "11-breakout",
-    path: "breakout/",
-    label: "打砖块",
-    async run(ev) {
-      const w = await ev("document.getElementById('board').width");
-      if (!w) throw new Error("画布没有尺寸");
-      const hasScore = await ev("!!document.getElementById('score')");
-      if (!hasScore) throw new Error("分数栏缺失");
-      const prompt = await ev("document.getElementById('overlay').classList.contains('show')");
-      if (!prompt) throw new Error("开局没有提示");
-      await ev("document.getElementById('start').click()");
-      await sleep(700);
-      const hidden = await ev("!document.getElementById('overlay').classList.contains('show')");
-      if (!hidden) throw new Error("点开始后遮罩没关");
-      await ev("document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}))");
-      await sleep(200);
-      await ev("document.dispatchEvent(new KeyboardEvent('keyup',{key:'ArrowLeft',bubbles:true}))");
-    }
-  },
-  {
-    name: "12-slide",
-    path: "slide/",
-    label: "数字华容道",
-    async run(ev) {
-      const n = await ev("document.querySelectorAll('.sl-tile').length");
-      if (n !== 16) throw new Error("格子数 " + n);
-      const blanks = await ev("document.querySelectorAll('.sl-tile.blank').length");
-      if (blanks !== 1) throw new Error("空格数 " + blanks);
-      await ev(`(function(){
-        var t = Array.from(document.querySelectorAll('.sl-tile'));
-        var bi = t.findIndex(function (x) { return x.classList.contains('blank'); });
-        var x = bi % 4, y = (bi / 4) | 0, cand = [];
-        if (x > 0) cand.push(bi - 1);
-        if (x < 3) cand.push(bi + 1);
-        if (y > 0) cand.push(bi - 4);
-        if (y < 3) cand.push(bi + 4);
-        t[cand[0]].click();
-        return cand[0];
-      })()`);
-      await sleep(120);
-      const moves = await ev("document.getElementById('moves').textContent");
-      if (moves !== "1") throw new Error("步数没记上：" + moves);
-      const still = await ev("document.querySelectorAll('.sl-tile.blank').length");
-      if (still !== 1) throw new Error("滑完空格数不对：" + still);
-    }
-  },
-  {
-    name: "13-mole",
-    path: "mole/",
-    label: "打地鼠",
-    async run(ev) {
-      const n = await ev("document.querySelectorAll('.hole').length");
-      if (n !== 9) throw new Error("洞口数 " + n);
-      await ev("document.getElementById('start').click()");
-      let up = false;
-      for (let i = 0; i < 14 && !up; i++) {
-        await sleep(250);
-        up = await ev("!!document.querySelector('.hole.up')");
-      }
-      if (!up) throw new Error("3 秒内没有地鼠冒头");
-      await ev("document.querySelector('.hole.up').click()");
-      await sleep(150);
-      const score = await ev("document.getElementById('score').textContent");
-      if (score !== "1") throw new Error("敲中没加分：" + score);
     }
   }
 ];
@@ -261,6 +131,7 @@ const CASES = [
 async function main() {
   fs.mkdirSync(OUT, { recursive: true });
   console.log("目标：" + BASE);
+  console.log("页面：" + CASES.length + " 个（游戏 " + GAME_LIST.length + " 个）");
 
   const chrome = spawn(CHROME, [
     "--headless=new", `--remote-debugging-port=${PORT}`, "--disable-gpu",
@@ -336,7 +207,7 @@ async function main() {
 
       let ok = true;
       let msg = "";
-      // 游戏页都要有音效模块和开关；首页、赞助页不需要
+
       if (c.path && c.path !== "sponsor/") {
         const hasSfx = await ev("!!window.SFX");
         const hasBtn = await ev("!!document.querySelector('.sfx-toggle')");
@@ -345,6 +216,7 @@ async function main() {
         else if (!hasBtn) { ok = false; msg = "音效开关没挂上"; }
         else if (audio !== "ok") { ok = false; msg = "音效播不出来：" + audio; }
       }
+
       try {
         await c.run(ev);
       } catch (e) {
@@ -363,12 +235,10 @@ async function main() {
       if (!ok) failures++;
     }
 
-
-
-    // 首页另截一张桌面尺寸
-    await send("Emulation.setDeviceMetricsOverride", { width: 1200, height: 900, deviceScaleFactor: 1, mobile: false });
+    // 首页另截一张桌面尺寸，高度放到 1600 以便看全 24 张卡
+    await send("Emulation.setDeviceMetricsOverride", { width: 1200, height: 1600, deviceScaleFactor: 1, mobile: false });
     await send("Page.navigate", { url: url("") });
-    await sleep(1000);
+    await sleep(1800);
     await shot("00-home-desktop");
     console.log("✓ 首页桌面截图");
 
@@ -381,7 +251,7 @@ async function main() {
     const okRedirect = /tarot/.test(landed) && shown === "月亮";
     console.log((okRedirect ? "✓ " : "✗ ") + "老链接转发 → " + landed + " 显示：" + shown);
     if (!okRedirect) failures++;
-    await shot("14-old-link-redirect");
+    await shot(pad2(CASES.length + 1) + "-old-link-redirect");
 
     ws.close();
   } finally {

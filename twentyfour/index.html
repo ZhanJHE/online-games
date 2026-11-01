@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F1E7">
+<title>24 点 · RK的小游戏合集</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%232B2533'/%3E%3Cpath d='M16 6l3 7 7 3-7 3-3 7-3-7-7-3 7-3z' fill='%23C9A96A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/css/site.css">
+<style>
+  .tf-panel {
+    width: min(320px, 84vw);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .tf-cards {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .tf-card {
+    min-width: 64px;
+    min-height: 84px;
+    padding: 6px 10px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 26px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: border-color .14s ease, background .14s ease, color .14s ease, transform .14s ease;
+  }
+  .tf-card:hover { border-color: var(--accent); }
+  .tf-card.pick {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+    transform: translateY(-3px);
+  }
+  .tf-ops {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .tf-op {
+    width: 52px;
+    height: 44px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    border-radius: 2px;
+    color: var(--ink);
+    font-size: 20px;
+    cursor: pointer;
+    transition: border-color .14s ease, color .14s ease;
+  }
+  .tf-op:hover { border-color: var(--accent); color: var(--accent); }
+  .tf-msg {
+    min-height: 22px;
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--ink-2);
+    text-align: center;
+  }
+  .tf-msg.bad { color: #B4626B; }
+</style>
+</head>
+<body>
+
+<script src="../assets/js/sfx.js"></script>
+<script src="../assets/js/game-kit.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var g = GameKit.mount({
+    id: "twentyfour",
+    title: "24 点",
+    tag: "24 POINT",
+    accent: "#7C5C7A",
+    tip: "选两张牌，再点运算符 · 把四张牌算成 24",
+    hud: [
+      { id: "time", label: "用时", value: "0" },
+      { id: "best", label: "最好", value: "—" }
+    ],
+    actions: [{ id: "undo", label: "撤销" }, { id: "newhand", label: "新牌" }],
+    stage: '<div class="tf-panel"><div class="tf-cards" id="cards"></div><div class="tf-ops" id="ops"></div><p class="tf-msg" id="msg">选两张牌</p></div>'
+  });
+
+  var cardsEl = g.$("#cards");
+  var opsEl = g.$("#ops");
+  var msg = g.$("#msg");
+
+  var cards = [];
+  var picked = [];
+  var history = [];
+  var started = 0;
+  var timerId = null;
+  var won = false;
+  var best = parseFloat(g.get("twentyfour.best", "0")) || 0;
+
+  g.setHud("best", best ? best.toFixed(1) : "—");
+
+  function gcd(a, b) {
+    a = Math.abs(a); b = Math.abs(b);
+    while (b) { var t = a % b; a = b; b = t; }
+    return a || 1;
+  }
+
+  function rat(n, d) {
+    if (d < 0) { n = -n; d = -d; }
+    var k = gcd(n, d);
+    return { n: n / k, d: d / k };
+  }
+
+  function val(x) { return x.n / x.d; }
+
+  function combine(a, b, op) {
+    if (op === "+") return rat(a.n * b.d + b.n * a.d, a.d * b.d);
+    if (op === "-") return rat(a.n * b.d - b.n * a.d, a.d * b.d);
+    if (op === "*") return rat(a.n * b.n, a.d * b.d);
+    if (b.n === 0) return null;
+    return rat(a.n * b.d, a.d * b.n);
+  }
+
+  function canReach24(list) {
+    if (list.length === 1) return Math.abs(val(list[0]) - 24) < 1e-9;
+    for (var i = 0; i < list.length; i++) {
+      for (var j = 0; j < list.length; j++) {
+        if (i === j) continue;
+        var rest = [];
+        for (var k = 0; k < list.length; k++) if (k !== i && k !== j) rest.push(list[k]);
+        var ops = ["+", "-", "*", "/"];
+        for (var o = 0; o < ops.length; o++) {
+          var r = combine(list[i], list[j], ops[o]);
+          if (r && canReach24(rest.concat([r]))) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function newHand() {
+    var nums = null;
+    for (var t = 0; t < 300; t++) {
+      var cand = [
+        Math.ceil(Math.random() * 9),
+        Math.ceil(Math.random() * 9),
+        Math.ceil(Math.random() * 9),
+        Math.ceil(Math.random() * 9)
+      ];
+      var rs = cand.map(function (v) { return rat(v, 1); });
+      if (canReach24(rs)) { nums = cand; break; }
+    }
+    if (!nums) nums = [4, 6, 2, 3];
+    cards = nums.map(function (v) { return rat(v, 1); });
+    picked = [];
+    history = [];
+    won = false;
+    started = 0;
+    clearInterval(timerId);
+    timerId = null;
+    g.setHud("time", "0");
+    g.hide();
+    msg.className = "tf-msg";
+    msg.textContent = "选两张牌";
+    render();
+  }
+
+  function render() {
+    cardsEl.innerHTML = "";
+    cards.forEach(function (c, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "tf-card" + (picked.indexOf(i) !== -1 ? " pick" : "");
+      b.textContent = c.d === 1 ? String(c.n) : c.n + "/" + c.d;
+      b.dataset.i = i;
+      b.addEventListener("click", function () { pick(i); });
+      cardsEl.appendChild(b);
+    });
+  }
+
+  function tick() {
+    g.setHud("time", ((Date.now() - started) / 1000).toFixed(1));
+  }
+
+  function pick(i) {
+    if (won) return;
+    var at = picked.indexOf(i);
+    if (at !== -1) picked.splice(at, 1);
+    else if (picked.length >= 2) picked = [i];
+    else picked.push(i);
+    g.sound("select");
+    render();
+    msg.className = "tf-msg";
+    msg.textContent = picked.length === 2 ? "选一个运算符" : "选两张牌";
+  }
+
+  function apply(op) {
+    if (won || picked.length !== 2) return;
+    var i = Math.min(picked[0], picked[1]);
+    var j = Math.max(picked[0], picked[1]);
+    var r = combine(cards[i], cards[j], op);
+    if (!r) {
+      g.sound("miss");
+      msg.className = "tf-msg bad";
+      msg.textContent = "不能除以 0";
+      return;
+    }
+
+    if (!started) {
+      started = Date.now();
+      timerId = setInterval(tick, 1000);
+    }
+
+    history.push(cards.slice());
+    var next = [];
+    cards.forEach(function (c, k) {
+      if (k === i) next.push(r);
+      else if (k !== j) next.push(c);
+    });
+    cards = next;
+    picked = [];
+    g.sound("match");
+    render();
+
+    if (cards.length === 1) {
+      if (Math.abs(val(cards[0]) - 24) < 1e-9) win();
+      else {
+        msg.className = "tf-msg bad";
+        msg.textContent = "得到 " + (cards[0].d === 1 ? cards[0].n : cards[0].n + "/" + cards[0].d) + "，不是 24";
+      }
+      return;
+    }
+    msg.className = "tf-msg";
+    msg.textContent = "还剩 " + cards.length + " 张";
+  }
+
+  function win() {
+    won = true;
+    clearInterval(timerId);
+    timerId = null;
+    var secs = (Date.now() - started) / 1000;
+    var v = Math.round(secs * 10) / 10;
+    g.setHud("time", v.toFixed(1));
+    if (!best || v < best) {
+      best = v;
+      g.saveBest(v);
+      g.setHud("best", best.toFixed(1));
+    }
+    g.sound("win");
+    g.show("算出来了", "用时 " + v.toFixed(1) + " 秒 · 最好 " + best.toFixed(1) + " 秒", "新的一手");
+  }
+
+  function undo() {
+    if (won || !history.length) return;
+    cards = history.pop();
+    picked = [];
+    g.sound("tick");
+    render();
+    msg.className = "tf-msg";
+    msg.textContent = "选两张牌";
+  }
+
+  ["+", "-", "×", "÷"].forEach(function (sym) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "tf-op";
+    b.id = "op-" + (sym === "+" ? "add" : sym === "-" ? "sub" : sym === "×" ? "mul" : "div");
+    b.textContent = sym;
+    b.addEventListener("click", function () {
+      apply(sym === "×" ? "*" : sym === "÷" ? "/" : sym);
+    });
+    opsEl.appendChild(b);
+  });
+
+  g.$("#undo").addEventListener("click", undo);
+  g.$("#newhand").addEventListener("click", newHand);
+  g.onOverlay(newHand);
+
+  newHand();
+})();
+</script>
+
+</body>
+</html>

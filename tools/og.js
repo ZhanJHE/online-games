@@ -55,11 +55,11 @@ async function main() {
     });
     await send("Page.navigate", { url: FILE_URL });
     await sleep(1400);
-    // 12 张卡在 630 高里放不下：压一压间距，必要时整体缩放，标题和全部卡片都要进画面
+    // 首页现在有 24 张卡，630 高放不下：隐藏工具条，只留前 12 张，必要时整体缩放
     await send("Runtime.evaluate", {
       expression: `(function () {
         var st = document.createElement("style");
-        st.textContent = ".home-foot{display:none!important}" +
+        st.textContent = ".home-foot,.home-tools,.find-hint,.empty{display:none!important}" +
           ".home-top{margin-bottom:16px}" +
           ".home-rule{margin-top:12px}" +
           ".grid{gap:10px}" +
@@ -69,6 +69,10 @@ async function main() {
           ".card-name{font-size:16px}" +
           ".card-desc{font-size:12px}";
         document.head.appendChild(st);
+
+        var cards = Array.prototype.slice.call(document.querySelectorAll(".grid .card"));
+        cards.slice(12).forEach(function (el) { el.parentNode.removeChild(el); });
+
         var p = document.querySelector(".page");
         var h = p ? p.scrollHeight : document.documentElement.scrollHeight;
         if (h > 630) document.documentElement.style.zoom = String(630 / h);

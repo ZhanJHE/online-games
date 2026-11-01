@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F1E7">
+<title>记忆序列 · RK的小游戏合集</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%232B2533'/%3E%3Cpath d='M16 6l3 7 7 3-7 3-3 7-3-7-7-3 7-3z' fill='%23C9A96A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/css/site.css">
+<style>
+  .sm-board {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    width: min(300px, 78vw);
+    aspect-ratio: 1;
+  }
+  .sm-pad {
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--card);
+    opacity: .72;
+    cursor: pointer;
+    transition: opacity .1s ease, transform .1s ease, filter .1s ease;
+  }
+  .sm-pad:nth-child(1) { background: #8E5F6E; }
+  .sm-pad:nth-child(2) { background: #5D7F6A; }
+  .sm-pad:nth-child(3) { background: #5F8FA8; }
+  .sm-pad:nth-child(4) { background: #B98A5E; }
+  .sm-pad.on { opacity: 1; transform: scale(.97); filter: brightness(1.12); }
+  .sm-pad:active { transform: scale(.97); }
+</style>
+</head>
+<body>
+
+<script src="../assets/js/sfx.js"></script>
+<script src="../assets/js/game-kit.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var SOUNDS = ["tick", "place", "flip", "select"];
+
+  var g = GameKit.mount({
+    id: "simon",
+    title: "记忆序列",
+    tag: "SIMON",
+    accent: "#8E5F6E",
+    tip: "看色块亮的顺序，然后按同样的顺序点 · 每过一关多一个",
+    hud: [
+      { id: "level", label: "层数", value: "0" },
+      { id: "best", label: "最好", value: "0" }
+    ],
+    actions: [{ id: "restart", label: "重开" }],
+    stage: '<div class="sm-board" id="board"></div>'
+  });
+
+  var boardEl = g.$("#board");
+  var pads = [];
+  var sequence = [];
+  var inputIdx = 0;
+  var running = false;
+  var accepting = false;
+  var best = g.best();
+  var flashTimers = [];
+
+  g.setHud("best", best);
+
+  for (var i = 0; i < 4; i++) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "sm-pad";
+    b.dataset.i = i;
+    b.setAttribute("aria-label", "色块 " + (i + 1));
+    b.addEventListener("click", onPad);
+    boardEl.appendChild(b);
+    pads.push(b);
+  }
+
+  function clearTimers() {
+    flashTimers.forEach(function (t) { clearTimeout(t); });
+    flashTimers = [];
+    pads.forEach(function (p) { p.classList.remove("on"); });
+  }
+
+  function flash(i, ms) {
+    pads[i].classList.add("on");
+    g.sound(SOUNDS[i]);
+    flashTimers.push(setTimeout(function () {
+      pads[i].classList.remove("on");
+    }, ms || 300));
+  }
+
+  function playSequence() {
+    accepting = false;
+    clearTimers();
+    var gap = 620;
+    sequence.forEach(function (v, k) {
+      flashTimers.push(setTimeout(function () { flash(v); }, k * gap));
+    });
+    flashTimers.push(setTimeout(function () {
+      accepting = true;
+    }, sequence.length * gap + 120));
+  }
+
+  function onPad(e) {
+    if (!running || !accepting) return;
+    var i = parseInt(e.currentTarget.dataset.i, 10);
+    flash(i, 220);
+    if (sequence[inputIdx] === i) {
+      inputIdx++;
+      if (inputIdx >= sequence.length) {
+        accepting = false;
+        best = Math.max(best, sequence.length);
+        g.saveBest(best);
+        g.setHud("best", best);
+        sequence.push(Math.floor(Math.random() * 4));
+        inputIdx = 0;
+        g.setHud("level", sequence.length);
+        setTimeout(playSequence, 760);
+      }
+    } else {
+      lose();
+    }
+  }
+
+  function lose() {
+    running = false;
+    accepting = false;
+    clearTimers();
+    g.sound("lose");
+    g.show("记错了", "到第 " + sequence.length + " 层 · 最好 " + best + " 层", "再来一局");
+  }
+
+  function start() {
+    clearTimers();
+    sequence = [Math.floor(Math.random() * 4)];
+    inputIdx = 0;
+    running = true;
+    accepting = false;
+    g.setHud("level", sequence.length);
+    g.hide();
+    playSequence();
+  }
+
+  function restart() { start(); }
+
+  g.$("#restart").addEventListener("click", restart);
+  g.onOverlay(restart);
+  g.show("记忆序列", "记住亮灯顺序，再照着点一遍", "开始");
+})();
+</script>
+
+</body>
+</html>

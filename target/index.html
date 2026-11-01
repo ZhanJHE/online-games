@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F1E7">
+<title>打靶 · RK的小游戏合集</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%232B2533'/%3E%3Cpath d='M16 6l3 7 7 3-7 3-3 7-3-7-7-3 7-3z' fill='%23C9A96A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/css/site.css">
+<style>
+  .tg-stage {
+    position: relative;
+    width: min(320px, 84vw);
+    aspect-ratio: 1;
+    background: #FBF7EF;
+    overflow: hidden;
+  }
+  .tg-target {
+    position: absolute;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle, #B08D57 0 18%, #FBF7EF 19% 34%, #A8753F 35% 56%, #FBF7EF 57% 74%, #A8753F 75%);
+    cursor: pointer;
+    animation: tg-in .16s ease both;
+  }
+  @keyframes tg-in { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+</style>
+</head>
+<body>
+
+<script src="../assets/js/sfx.js"></script>
+<script src="../assets/js/game-kit.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var ROUND = 30;
+
+  var g = GameKit.mount({
+    id: "target",
+    title: "打靶",
+    tag: "TARGET",
+    accent: "#A8753F",
+    tip: "30 秒 · 点掉出现的靶子，靶子会越来越小",
+    hud: [
+      { id: "score", label: "分数", value: "0" },
+      { id: "time", label: "剩余", value: "30" },
+      { id: "best", label: "最好", value: "0" }
+    ],
+    actions: [{ id: "restart", label: "重开" }],
+    stage: '<div class="tg-stage" id="field"></div>'
+  });
+
+  var field = g.$("#field");
+  var score = 0;
+  var remain = ROUND;
+  var best = g.best();
+  var running = false;
+  var spawnTimer = null;
+  var clockTimer = null;
+  var targets = [];
+
+  g.setHud("best", best);
+
+  function clearTargets() {
+    targets.forEach(function (t) {
+      clearTimeout(t.life);
+      if (t.el.parentNode) t.el.parentNode.removeChild(t.el);
+    });
+    targets = [];
+  }
+
+  function spawn() {
+    if (!running) return;
+    if (targets.length >= 4) return;
+
+    var W = field.clientWidth, H = field.clientHeight;
+    var maxSize = Math.max(22, 54 - Math.floor(score / 40) * 4);
+    var size = maxSize * (0.7 + Math.random() * 0.3);
+    var el = document.createElement("button");
+    el.type = "button";
+    el.className = "tg-target";
+    el.style.width = size + "px";
+    el.style.height = size + "px";
+    el.style.left = Math.random() * (W - size) + "px";
+    el.style.top = Math.random() * (H - size) + "px";
+    el.setAttribute("aria-label", "靶子");
+
+    var item = { el: el, life: null };
+    el.addEventListener("click", function () {
+      if (!running || item.dead) return;
+      item.dead = true;
+      score += 10;
+      g.setHud("score", score);
+      g.sound("brick");
+      clearTimeout(item.life);
+      if (el.parentNode) el.parentNode.removeChild(el);
+      targets = targets.filter(function (t) { return t !== item; });
+    });
+
+    item.life = setTimeout(function () {
+      if (item.dead) return;
+      item.dead = true;
+      if (el.parentNode) el.parentNode.removeChild(el);
+      targets = targets.filter(function (t) { return t !== item; });
+    }, 1100 + Math.random() * 500);
+
+    field.appendChild(el);
+    targets.push(item);
+  }
+
+  function tickClock() {
+    remain--;
+    g.setHud("time", remain);
+    if (remain <= 0) end();
+  }
+
+  function start() {
+    stop();
+    clearTargets();
+    score = 0;
+    remain = ROUND;
+    g.setHud("score", 0);
+    g.setHud("time", ROUND);
+    g.hide();
+    running = true;
+    spawnTimer = setInterval(spawn, 520);
+    clockTimer = setInterval(tickClock, 1000);
+    spawn();
+  }
+
+  function stop() {
+    running = false;
+    clearInterval(spawnTimer);
+    clearInterval(clockTimer);
+    spawnTimer = null;
+    clockTimer = null;
+  }
+
+  function end() {
+    stop();
+    clearTargets();
+    if (score > best) { best = score; g.saveBest(best); g.setHud("best", best); }
+    g.sound(score > 0 ? "win" : "miss");
+    g.show("时间到", "这一轮 " + score + " 分 · 最好 " + best + " 分", "再来一局");
+  }
+
+  function restart() { start(); }
+
+  g.$("#restart").addEventListener("click", restart);
+  g.onOverlay(restart);
+  g.show("打靶", "30 秒，点掉更多靶子", "开始");
+})();
+</script>
+
+</body>
+</html>

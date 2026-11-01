@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F1E7">
+<title>推箱子 · RK的小游戏合集</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%232B2533'/%3E%3Cpath d='M16 6l3 7 7 3-7 3-3 7-3-7-7-3 7-3z' fill='%23C9A96A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/css/site.css">
+<style>
+  .sok-board {
+    display: grid;
+    gap: 2px;
+    width: min(340px, 86vw);
+    padding: 6px;
+    background: #E9E1D4;
+    border: 1px solid var(--line);
+  }
+  .sok-cell {
+    position: relative;
+    aspect-ratio: 1;
+    background: #FBF7EF;
+  }
+  .sok-cell.wall { background: #2B2533; }
+  .sok-cell.goal { background: #F3E7CF; }
+  .sok-cell.goal::after {
+    content: "";
+    position: absolute;
+    inset: 34%;
+    border-radius: 50%;
+    border: 1px solid var(--gold);
+  }
+  .sok-cell.box::before {
+    content: "";
+    position: absolute;
+    inset: 12%;
+    background: #B98A5E;
+    border: 1px solid #8C6338;
+    border-radius: 2px;
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, .3);
+  }
+  .sok-cell.box.on { background: #EEDFC2; }
+  .sok-cell.box.on::before { background: #D9A94E; border-color: #A5762C; }
+  .sok-cell.player::before {
+    content: "";
+    position: absolute;
+    inset: 18%;
+    border-radius: 50%;
+    background: #4F7D7B;
+    box-shadow: inset 0 -2px 3px rgba(0, 0, 0, .2);
+  }
+  .sok-cell.player::after {
+    content: "";
+    position: absolute;
+    inset: 38%;
+    border-radius: 50%;
+    background: #FBF7EF;
+  }
+</style>
+</head>
+<body>
+
+<script src="../assets/js/sfx.js"></script>
+<script src="../assets/js/game-kit.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var LEVELS = [
+    [
+      "#######",
+      "#     #",
+      "# .$@ #",
+      "#     #",
+      "#######"
+    ],
+    [
+      "#######",
+      "#     #",
+      "#  .  #",
+      "#  $  #",
+      "#  @  #",
+      "#######"
+    ],
+    [
+      "#######",
+      "#     #",
+      "# . . #",
+      "# $ $ #",
+      "#  @  #",
+      "#######"
+    ],
+    [
+      "#######",
+      "#     #",
+      "# ..  #",
+      "# $$  #",
+      "#  @  #",
+      "#######"
+    ],
+    [
+      "#######",
+      "#     #",
+      "#  .  #",
+      "# $ $ #",
+      "#  @  #",
+      "#  .  #",
+      "#######"
+    ],
+    [
+      "#######",
+      "#     #",
+      "# .#. #",
+      "# $#$ #",
+      "#  @  #",
+      "#     #",
+      "#######"
+    ]
+  ];
+
+  var g = GameKit.mount({
+    id: "sokoban",
+    title: "推箱子",
+    tag: "SOKOBAN",
+    accent: "#7A6A4F",
+    tip: "方向键或下面的按钮移动 · 把每个箱子推到圆点上 · 箱子只能推不能拉",
+    hud: [
+      { id: "level", label: "关卡", value: "1" },
+      { id: "moves", label: "步数", value: "0" }
+    ],
+    actions: [{ id: "restart", label: "重开" }],
+    stage: '<div class="sok-board" id="board"></div>'
+  });
+
+  var boardEl = g.$("#board");
+  var padEl = document.createElement("div");
+  g.main.appendChild(padEl);
+  GameKit.pad(padEl, moveDir);
+
+  var levelIndex = Math.max(0, Math.min(LEVELS.length - 1, parseInt(g.get("sokoban.level", "0"), 10) || 0));
+  var walls = [];
+  var goals = [];
+  var boxes = [];
+  var player = { r: 0, c: 0 };
+  var rows = 0, cols = 0;
+  var moves = 0;
+  var won = false;
+
+  function loadLevel(i) {
+    levelIndex = i;
+    var map = LEVELS[i];
+    rows = map.length;
+    cols = map[0].length;
+    walls = [];
+    goals = [];
+    boxes = [];
+    moves = 0;
+    won = false;
+
+    for (var r = 0; r < rows; r++) {
+      var wrow = [];
+      for (var c = 0; c < cols; c++) {
+        var ch = map[r][c] || " ";
+        wrow.push(ch === "#");
+        if (ch === "." || ch === "*" || ch === "+") goals.push(r + "," + c);
+        if (ch === "$" || ch === "*") boxes.push({ r: r, c: c });
+        if (ch === "@" || ch === "+") player = { r: r, c: c };
+      }
+      walls.push(wrow);
+    }
+
+    boardEl.style.gridTemplateColumns = "repeat(" + cols + ", 1fr)";
+    g.setHud("level", i + 1);
+    g.setHud("moves", 0);
+    render();
+    g.hide();
+  }
+
+  function boxAt(r, c) {
+    for (var i = 0; i < boxes.length; i++) if (boxes[i].r === r && boxes[i].c === c) return boxes[i];
+    return null;
+  }
+
+  function goalAt(r, c) {
+    return goals.indexOf(r + "," + c) !== -1;
+  }
+
+  function render() {
+    var html = "";
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        var cls = "sok-cell";
+        if (walls[r][c]) cls += " wall";
+        else {
+          if (goalAt(r, c)) cls += " goal";
+          if (boxAt(r, c)) cls += " box" + (goalAt(r, c) ? " on" : "");
+          if (player.r === r && player.c === c) cls += " player";
+        }
+        html += '<div class="' + cls + '"></div>';
+      }
+    }
+    boardEl.innerHTML = html;
+  }
+
+  function moveDir(d) {
+    if (won) return;
+    var dr = d === "up" ? -1 : d === "down" ? 1 : 0;
+    var dc = d === "left" ? -1 : d === "right" ? 1 : 0;
+    var tr = player.r + dr, tc = player.c + dc;
+
+    if (tr < 0 || tc < 0 || tr >= rows || tc >= cols || walls[tr][tc]) return bump();
+
+    var box = boxAt(tr, tc);
+    if (box) {
+      var br = tr + dr, bc = tc + dc;
+      if (br < 0 || bc < 0 || br >= rows || bc >= cols || walls[br][bc] || boxAt(br, bc)) return bump();
+      box.r = br;
+      box.c = bc;
+      g.sound("place");
+    } else {
+      g.sound("tick");
+    }
+
+    player.r = tr;
+    player.c = tc;
+    moves++;
+    g.setHud("moves", moves);
+    render();
+    checkWin();
+  }
+
+  function bump() {
+    g.sound("miss");
+  }
+
+  function checkWin() {
+    for (var i = 0; i < goals.length; i++) {
+      var p = goals[i].split(",");
+      if (!boxAt(parseInt(p[0], 10), parseInt(p[1], 10))) return;
+    }
+    won = true;
+    g.sound("win");
+    if (levelIndex + 1 < LEVELS.length) {
+      g.set("sokoban.level", levelIndex + 1);
+      g.show("第 " + (levelIndex + 1) + " 关完成", "用了 " + moves + " 步", "下一关");
+      overlayNext = function () { loadLevel(levelIndex + 1); };
+    } else {
+      g.set("sokoban.level", 0);
+      g.show("全部通关", "六关都推完了", "从头再来");
+      overlayNext = function () { loadLevel(0); };
+    }
+  }
+
+  var overlayNext = null;
+
+  document.addEventListener("keydown", function (e) {
+    var map = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", w: "up", s: "down", a: "left", d: "right" };
+    var dir = map[e.key];
+    if (!dir) return;
+    e.preventDefault();
+    moveDir(dir);
+  });
+
+  g.$("#restart").addEventListener("click", function () { loadLevel(levelIndex); });
+  g.onOverlay(function () {
+    if (overlayNext) overlayNext();
+  });
+
+  loadLevel(levelIndex);
+})();
+</script>
+
+</body>
+</html>

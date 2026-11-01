@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F1E7">
+<title>别踩白块 · RK的小游戏合集</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%232B2533'/%3E%3Cpath d='M16 6l3 7 7 3-7 3-3 7-3-7-7-3 7-3z' fill='%23C9A96A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/css/site.css">
+<style>
+  .tiles-board {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: min(320px, 84vw);
+    background: #E9E1D4;
+    padding: 8px;
+    border: 1px solid var(--line);
+  }
+  .t-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .t-cell {
+    aspect-ratio: 1;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    background: var(--card);
+    cursor: pointer;
+    transition: background .1s ease;
+  }
+  .t-cell.black { background: #2B2533; border-color: #2B2533; }
+  .t-cell.black.hit { background: #8B7F90; border-color: #8B7F90; cursor: default; }
+  .t-row:not(:last-child) .t-cell { cursor: default; }
+</style>
+</head>
+<body>
+
+<script src="../assets/js/sfx.js"></script>
+<script src="../assets/js/game-kit.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var ROWS = 5, COLS = 4;
+
+  var g = GameKit.mount({
+    id: "tiles",
+    title: "别踩白块",
+    tag: "TILES",
+    accent: "#7A6A72",
+    tip: "只点最下面一行的黑块 · 漏一块或点到白块就结束",
+    hud: [
+      { id: "score", label: "分数", value: "0" },
+      { id: "best", label: "最好", value: "0" }
+    ],
+    actions: [{ id: "restart", label: "重开" }],
+    stage: '<div class="tiles-board" id="board"></div>'
+  });
+
+  var boardEl = g.$("#board");
+  var rows = [];
+  var score = 0;
+  var best = g.best();
+  var running = false;
+  var timer = null;
+  var tickMs = 900;
+
+  g.setHud("best", best);
+
+  function newRow() {
+    var row = [false, false, false, false];
+    var n = Math.random() < 0.28 ? 2 : 1;
+    while (n--) {
+      var i = Math.floor(Math.random() * COLS);
+      if (row[i]) n++;
+      else row[i] = true;
+    }
+    if (!row.some(Boolean)) row[Math.floor(Math.random() * COLS)] = true;
+    return row.map(function (black) { return { black: black, hit: false }; });
+  }
+
+  function render() {
+    var html = "";
+    for (var r = 0; r < rows.length; r++) {
+      html += '<div class="t-row">';
+      for (var c = 0; c < COLS; c++) {
+        var cell = rows[r][c];
+        html += '<button type="button" class="t-cell' +
+          (cell.black ? " black" : "") + (cell.hit ? " hit" : "") +
+          '" data-r="' + r + '" data-c="' + c + '"></button>';
+      }
+      html += "</div>";
+    }
+    boardEl.innerHTML = html;
+  }
+
+  function over(reason) {
+    if (!running) return;
+    running = false;
+    clearInterval(timer);
+    timer = null;
+    if (score > best) { best = score; g.saveBest(best); g.setHud("best", best); }
+    g.sound("lose");
+    g.show("结束了", reason + " · 这一局 " + score + " 分", "再来一局");
+  }
+
+  function tick() {
+    if (!running) return;
+    var bottom = rows[ROWS - 1];
+    for (var i = 0; i < COLS; i++) {
+      if (bottom[i].black && !bottom[i].hit) return over("漏了一块");
+    }
+    rows.pop();
+    rows.unshift(newRow());
+    render();
+  }
+
+  function tap(r, c) {
+    if (!running) return;
+    if (r !== ROWS - 1) return;
+    var cell = rows[r][c];
+    if (!cell.black) return over("点到白块");
+    if (cell.hit) return;
+    cell.hit = true;
+    score++;
+    g.setHud("score", score);
+    g.sound("eat");
+    var el = boardEl.querySelector('.t-cell[data-r="' + r + '"][data-c="' + c + '"]');
+    if (el) el.classList.add("hit");
+  }
+
+  boardEl.addEventListener("click", function (e) {
+    var t = e.target.closest(".t-cell");
+    if (!t) return;
+    tap(parseInt(t.dataset.r, 10), parseInt(t.dataset.c, 10));
+  });
+
+  function schedule() {
+    clearInterval(timer);
+    timer = setInterval(function () {
+      if (!running) return;
+      tick();
+      var next = Math.max(320, 900 - Math.floor(score / 5) * 40);
+      if (next !== tickMs) {
+        tickMs = next;
+        schedule();
+      }
+    }, tickMs);
+  }
+
+  function start() {
+    clearInterval(timer);
+    rows = [];
+    for (var i = 0; i < ROWS; i++) rows.push(newRow());
+    score = 0;
+    tickMs = 900;
+    g.setHud("score", 0);
+    g.hide();
+    render();
+    running = true;
+    schedule();
+  }
+
+  function restart() { start(); }
+
+  g.$("#restart").addEventListener("click", restart);
+  g.onOverlay(restart);
+
+  rows = [];
+  for (var i = 0; i < ROWS; i++) rows.push(newRow());
+  render();
+  g.show("别踩白块", "点最下面一行的黑块，别漏", "开始");
+})();
+</script>
+
+</body>
+</html>

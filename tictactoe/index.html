@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F1E7">
+<title>井字棋 · RK的小游戏合集</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%232B2533'/%3E%3Cpath d='M16 6l3 7 7 3-7 3-3 7-3-7-7-3 7-3z' fill='%23C9A96A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/css/site.css">
+<style>
+  .ttt-board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    width: min(300px, 80vw);
+    aspect-ratio: 1;
+  }
+  .ttt-cell {
+    display: grid;
+    place-items: center;
+    padding: 0;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    font-family: var(--serif);
+    font-size: 46px;
+    line-height: 1;
+    color: var(--ink);
+    cursor: pointer;
+    transition: background .14s ease, border-color .14s ease, color .14s ease;
+  }
+  .ttt-cell:hover { border-color: var(--accent); }
+  .ttt-cell.x { color: #6D5D7B; cursor: default; }
+  .ttt-cell.o { color: #B08D57; cursor: default; }
+  .ttt-cell.win { background: var(--accent-soft); border-color: var(--accent); }
+  .ttt-cell:disabled { cursor: default; }
+</style>
+</head>
+<body>
+
+<script src="../assets/js/sfx.js"></script>
+<script src="../assets/js/game-kit.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var g = GameKit.mount({
+    id: "tictactoe",
+    title: "井字棋",
+    tag: "TIC TAC TOE",
+    accent: "#6D5D7B",
+    tip: "你先手画 ✕，AI 画 ○ · 横竖斜连成三个就赢",
+    hud: [
+      { id: "streak", label: "连胜", value: "0" },
+      { id: "best", label: "最好", value: "0" }
+    ],
+    actions: [{ id: "restart", label: "重开" }],
+    stage: '<div class="ttt-board" id="board"></div>'
+  });
+
+  var boardEl = g.$("#board");
+  var LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+  var board = ["", "", "", "", "", "", "", "", ""];
+  var over = false;
+  var streak = 0;
+  var best = g.best();
+  var cells = [];
+
+  g.setHud("best", best);
+
+  for (var i = 0; i < 9; i++) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "ttt-cell";
+    b.dataset.i = i;
+    b.addEventListener("click", onCell);
+    boardEl.appendChild(b);
+    cells.push(b);
+  }
+
+  function winner(b) {
+    for (var i = 0; i < LINES.length; i++) {
+      var l = LINES[i];
+      if (b[l[0]] && b[l[0]] === b[l[1]] && b[l[1]] === b[l[2]]) {
+        return { p: b[l[0]], line: l };
+      }
+    }
+    return b.indexOf("") === -1 ? { p: "draw", line: null } : null;
+  }
+
+  function paint() {
+    for (var i = 0; i < 9; i++) {
+      var c = cells[i];
+      c.textContent = board[i] === "X" ? "✕" : (board[i] === "O" ? "○" : "");
+      c.className = "ttt-cell" + (board[i] === "X" ? " x" : board[i] === "O" ? " o" : "");
+      c.disabled = !!board[i];
+    }
+  }
+
+  function clearWin() {
+    for (var i = 0; i < 9; i++) cells[i].classList.remove("win");
+  }
+
+  function finish(res) {
+    over = true;
+    if (res.p === "X") {
+      streak++;
+      if (streak > best) { best = streak; g.saveBest(best); g.setHud("best", best); }
+      g.sound("win");
+    } else if (res.p === "O") {
+      streak = 0;
+      g.sound("lose");
+    } else {
+      streak = 0;
+      g.sound("miss");
+    }
+    g.setHud("streak", streak);
+    if (res.line) res.line.forEach(function (i) { cells[i].classList.add("win"); });
+    g.show(res.p === "X" ? "你赢了" : res.p === "O" ? "AI 赢了" : "平局",
+      "连胜 " + streak + " · 最好 " + best, "再来一局");
+  }
+
+  function place(i, p) {
+    board[i] = p;
+    paint();
+    var res = winner(board);
+    if (res) finish(res);
+    return !!res;
+  }
+
+  function onCell(e) {
+    var i = parseInt(e.currentTarget.dataset.i, 10);
+    if (over || board[i]) return;
+    g.sound("place");
+    if (place(i, "X")) return;
+    setTimeout(aiTurn, 260);
+  }
+
+  function aiTurn() {
+    if (over) return;
+    var empty = [];
+    for (var i = 0; i < 9; i++) if (!board[i]) empty.push(i);
+    if (!empty.length) return;
+
+    var pick;
+    if (Math.random() < 0.12) {
+      pick = empty[Math.floor(Math.random() * empty.length)];
+    } else {
+      pick = bestMove(board);
+    }
+    g.sound("place");
+    place(pick, "O");
+  }
+
+  function bestMove(b) {
+    var bestScore = -Infinity;
+    var choices = [];
+    for (var i = 0; i < 9; i++) {
+      if (b[i]) continue;
+      b[i] = "O";
+      var s = minimax(b, 0, false);
+      b[i] = "";
+      if (s > bestScore) { bestScore = s; choices = [i]; }
+      else if (s === bestScore) choices.push(i);
+    }
+    return choices[Math.floor(Math.random() * choices.length)];
+  }
+
+  function minimax(b, depth, maxing) {
+    var res = winner(b);
+    if (res) {
+      if (res.p === "O") return 10 - depth;
+      if (res.p === "X") return depth - 10;
+      return 0;
+    }
+    var i, s;
+    if (maxing) {
+      var bestScore = -Infinity;
+      for (i = 0; i < 9; i++) {
+        if (b[i]) continue;
+        b[i] = "O";
+        s = minimax(b, depth + 1, false);
+        b[i] = "";
+        if (s > bestScore) bestScore = s;
+      }
+      return bestScore;
+    }
+    var worst = Infinity;
+    for (i = 0; i < 9; i++) {
+      if (b[i]) continue;
+      b[i] = "X";
+      s = minimax(b, depth + 1, true);
+      b[i] = "";
+      if (s < worst) worst = s;
+    }
+    return worst;
+  }
+
+  function reset() {
+    board = ["", "", "", "", "", "", "", "", ""];
+    over = false;
+    clearWin();
+    paint();
+    g.hide();
+  }
+
+  g.$("#restart").addEventListener("click", reset);
+  g.onOverlay(reset);
+
+  paint();
+})();
+</script>
+
+</body>
+</html>

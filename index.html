@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F7F1E7">
 <title>RK的小游戏合集</title>
-<meta name="description" content="11 个纯静态网页小游戏：俄罗斯方块、恋爱转盘、恋爱塔罗、2048、记忆翻牌、贪吃蛇、扫雷、五子棋、打砖块、数字华容道、打地鼠。">
+<meta name="description" content="23 个纯静态网页小游戏：俄罗斯方块、贪吃蛇、扫雷、五子棋、2048、乒乓、推箱子、24 点等，点开即玩。">
 <meta property="og:type" content="website">
 <meta property="og:title" content="RK的小游戏合集">
-<meta property="og:description" content="11 个纯静态网页小游戏，点开即玩。">
+<meta property="og:description" content="23 个纯静态网页小游戏，点开即玩。">
 <meta property="og:image" content="https://zhanjhe.github.io/online-games/assets/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%232B2533'/%3E%3Cpath d='M16 6l3 7 7 3-7 3-3 7-3-7-7-3 7-3z' fill='%23C9A96A'/%3E%3C/svg%3E">
@@ -29,153 +29,29 @@
   <header class="home-top">
     <div class="home-kicker">MINI GAMES</div>
     <h1 class="home-title">RK的小游戏合集</h1>
-    <p class="home-sub"><span id="gameCount">11</span> 个小游戏，点开即玩</p>
+    <p class="home-sub"><span id="gameCount">23</span> 个小游戏，点开即玩</p>
     <div class="home-rule"><span>✷</span></div>
   </header>
 
-  <main class="grid">
+  <main class="home-main">
 
-    <a class="card" href="tetris/index.html" style="--i:0; --accent:#B4626B">
-      <span class="card-tag">TETRIS</span>
-      <span class="card-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3.5" y="3.5" width="5.5" height="5.5"/><rect x="9" y="9" width="5.5" height="5.5"/><rect x="14.5" y="14.5" width="5.5" height="5.5"/>
+    <div class="home-tools">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+          <circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.4 15.4L21 21"/>
         </svg>
-      </span>
-      <span class="card-name">俄罗斯方块</span>
-      <span class="card-desc">堆方块、消行，别堆到顶</span>
-    </a>
+        <input id="q" type="search" placeholder="搜游戏：棋、数字、方块…" aria-label="搜索小游戏" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="cats" id="cats" role="group" aria-label="按分类筛选"></div>
+    </div>
 
-    <a class="card" href="wheel/index.html" style="--i:1; --accent:#B98A5E">
-      <span class="card-tag">SPIN</span>
-      <span class="card-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="13" r="7.5"/><path d="M12 5.5v15M4.5 13h15M6.7 7.7l10.6 10.6"/>
-        </svg>
-      </span>
-      <span class="card-name">恋爱转盘</span>
-      <span class="card-desc">转一下，替你做个决定</span>
-    </a>
+    <p class="find-hint" id="findHint" aria-live="polite" hidden></p>
 
-    <a class="card" href="tarot/index.html" style="--i:2; --accent:#6C6795">
-      <span class="card-tag">TAROT</span>
-      <span class="card-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="6" y="3" width="12" height="18" rx="1"/><path d="M12 7.6l1.5 3.2 3.2 1.5-3.2 1.5-1.5 3.2-1.5-3.2-3.2-1.5 3.2-1.5z"/>
-        </svg>
-      </span>
-      <span class="card-name">恋爱塔罗</span>
-      <span class="card-desc">24 道题，抽一张属于你的牌</span>
-    </a>
+    <div class="grid" id="grid"></div>
 
-    <a class="card" href="2048/index.html" style="--i:3; --accent:#D9A94E">
-      <span class="card-tag">2048</span>
-      <span class="card-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3.5" y="3.5" width="7" height="7"/><rect x="13.5" y="3.5" width="7" height="7"/>
-          <rect x="3.5" y="13.5" width="7" height="7"/><rect x="13.5" y="13.5" width="7" height="7"/>
-        </svg>
-      </span>
-      <span class="card-name">2048</span>
-      <span class="card-desc">合并相同数字，凑到 2048</span>
-    </a>
+    <p class="empty" id="empty" hidden>没有找到，换个词试试</p>
 
-    <a class="card" href="memory/index.html" style="--i:4; --accent:#7E7BA6">
-      <span class="card-tag">MEMORY</span>
-      <span class="card-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="4" y="6" width="10" height="14" rx="1"/><path d="M10 3h9a1 1 0 0 1 1 1v13"/><circle cx="9" cy="13" r="1.4"/>
-        </svg>
-      </span>
-      <span class="card-name">记忆翻牌</span>
-      <span class="card-desc">翻两张，把图案配成一对</span>
-    </a>
-
-    <a class="card" href="snake/index.html" style="--i:5; --accent:#5D7F6A">
-      <span class="card-tag">SNAKE</span>
-      <span class="card-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 6.5h6a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h7"/><circle cx="18.2" cy="18.5" r="1.8"/>
-        </svg>
-      </span>
-      <span class="card-name">贪吃蛇</span>
-      <span class="card-desc">越吃越长，别咬到自己</span>
-    </a>
-
-    <a class="card" href="minesweeper/index.html" style="--i:6; --accent:#5F8FA8">
-      <span class="card-tag">MINES</span>
-      <span class="card-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M7 3v18"/><path d="M7 4.5h9l-2.5 3.2 2.5 3.2H7z"/>
-        </svg>
-      </span>
-      <span class="card-name">扫雷</span>
-      <span class="card-desc">9×9，10 颗雷，别点爆</span>
-    </a>
-
-    <a class="card" href="gomoku/index.html" style="--i:7; --accent:#7C6A55">
-      <span class="card-tag">GOMOKU</span>
-      <span class="card-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3.5" y="3.5" width="17" height="17"/><path d="M9 3.5v17M15 3.5v17M3.5 9h17M3.5 15h17"/>
-          <circle cx="9" cy="9" r="1.7" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.7"/>
-        </svg>
-      </span>
-      <span class="card-name">五子棋</span>
-      <span class="card-desc">横竖斜，先连成五个</span>
-    </a>
-
-    <a class="card" href="breakout/index.html" style="--i:8; --accent:#A65D4E">
-      <span class="card-tag">BREAKOUT</span>
-      <span class="card-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3.5" y="3.5" width="5" height="3"/><rect x="9.5" y="3.5" width="5" height="3"/><rect x="15.5" y="3.5" width="5" height="3"/>
-          <circle cx="12" cy="12" r="1.7"/><path d="M7 19.5h10"/>
-        </svg>
-      </span>
-      <span class="card-name">打砖块</span>
-      <span class="card-desc">挡板接球，把砖打光</span>
-    </a>
-
-    <a class="card" href="slide/index.html" style="--i:9; --accent:#4F7D7B">
-      <span class="card-tag">SLIDE</span>
-      <span class="card-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3.5" y="3.5" width="7" height="7"/><rect x="13.5" y="3.5" width="7" height="7"/>
-          <rect x="3.5" y="13.5" width="7" height="7"/><path d="M14 15.5v4M12 17.5h4"/>
-        </svg>
-      </span>
-      <span class="card-name">数字华容道</span>
-      <span class="card-desc">滑动数字，从 1 排到 15</span>
-    </a>
-
-    <a class="card" href="mole/index.html" style="--i:10; --accent:#8B6A3F">
-      <span class="card-tag">MOLE</span>
-      <span class="card-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <ellipse cx="12" cy="19.5" rx="7.5" ry="1.8"/>
-          <path d="M8 19.5v-3.1a4 4 0 0 1 8 0v3.1"/>
-          <circle cx="10.2" cy="14.6" r=".7" fill="currentColor" stroke="none"/>
-          <circle cx="13.8" cy="14.6" r=".7" fill="currentColor" stroke="none"/>
-          <path d="M10.8 16.6h2.4"/>
-        </svg>
-      </span>
-      <span class="card-name">打地鼠</span>
-      <span class="card-desc">30 秒，敲到更多老鼠</span>
-    </a>
-
-    <a class="card" href="sponsor/index.html" style="--i:11; --accent:#B08D57">
-      <span class="card-tag">SPONSOR</span>
-      <span class="card-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M5 9h11v6a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z"/>
-          <path d="M16 11h2.5a2.5 2.5 0 0 1 0 5H16"/>
-          <path d="M4 6c1.5 0 1.5 2 3 2s1.5-2 3-2"/>
-        </svg>
-      </span>
-      <span class="card-name">赞助作者</span>
-      <span class="card-desc">请作者喝杯奶茶</span>
-    </a>
+    <noscript><p class="empty">开启 JavaScript 后显示游戏卡片。</p></noscript>
 
   </main>
 
@@ -185,16 +61,113 @@
 
 </div>
 
+<script src="assets/data/games.js"></script>
 <script>
-/* 小字里的数量按实际卡片算，加游戏不用再改这一行 */
 (function () {
-  var cards = document.querySelectorAll(".grid .card");
-  var n = 0;
-  for (var i = 0; i < cards.length; i++) {
-    if (cards[i].getAttribute("href") !== "sponsor/index.html") n++;
+  "use strict";
+
+  var games = window.GAMES || [];
+  var cats = window.CATS || [{ id: "all", name: "全部" }];
+  var grid = document.getElementById("grid");
+  var catsEl = document.getElementById("cats");
+  var input = document.getElementById("q");
+  var hint = document.getElementById("findHint");
+  var empty = document.getElementById("empty");
+  var countEl = document.getElementById("gameCount");
+
+  var state = { q: "", cat: "all" };
+
+  var gameCount = games.filter(function (g) { return g.cat !== "sponsor"; }).length;
+  countEl.textContent = String(gameCount);
+
+  function catName(id) {
+    for (var i = 0; i < cats.length; i++) if (cats[i].id === id) return cats[i].name;
+    return "";
   }
-  var el = document.getElementById("gameCount");
-  if (el) el.textContent = n;
+
+  function haystack(g) {
+    return [g.name, g.desc, g.tag, catName(g.cat), (g.keywords || []).join(" ")]
+      .join(" ").toLowerCase();
+  }
+
+  function cardHTML(g, i) {
+    return '<a class="card" href="' + g.href + '" style="--i:' + i + '; --accent:' + g.accent + '">' +
+      '<span class="card-tag">' + g.tag + '</span>' +
+      '<span class="card-icon">' + g.icon + '</span>' +
+      '<span class="card-name">' + g.name + '</span>' +
+      '<span class="card-desc">' + g.desc + '</span>' +
+      '</a>';
+  }
+
+  function matches(g) {
+    if (g.cat === "sponsor") return state.cat === "all" && !state.q;
+    if (state.cat !== "all" && g.cat !== state.cat) return false;
+    if (!state.q) return true;
+    return haystack(g).indexOf(state.q) !== -1;
+  }
+
+  function render() {
+    var list = games.filter(matches);
+    var shown = 0;
+    var idx = 0;
+    var html = "";
+    for (var i = 0; i < list.length; i++) {
+      var g = list[i];
+      if (g.cat !== "sponsor") shown++;
+      html += cardHTML(g, idx);
+      idx++;
+    }
+    grid.innerHTML = html;
+
+    var filtering = !!state.q || state.cat !== "all";
+    hint.hidden = !filtering;
+    hint.textContent = filtering ? "找到 " + shown + " 个" : "";
+    empty.hidden = shown !== 0;
+  }
+
+  function syncChips() {
+    var buttons = catsEl.querySelectorAll(".cat");
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].setAttribute("aria-pressed", buttons[i].dataset.cat === state.cat ? "true" : "false");
+    }
+  }
+
+  cats.forEach(function (c) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "cat";
+    b.dataset.cat = c.id;
+    b.textContent = c.name;
+    b.setAttribute("aria-pressed", c.id === state.cat ? "true" : "false");
+    b.addEventListener("click", function () {
+      state.cat = c.id;
+      syncChips();
+      render();
+    });
+    catsEl.appendChild(b);
+  });
+
+  input.addEventListener("input", function () {
+    state.q = input.value.trim().toLowerCase();
+    render();
+  });
+
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      input.value = "";
+      state.q = "";
+      state.cat = "all";
+      syncChips();
+      render();
+      return;
+    }
+    if (e.key === "Enter") {
+      var first = grid.querySelector(".card");
+      if (first) window.location.href = first.getAttribute("href");
+    }
+  });
+
+  render();
 })();
 </script>
 

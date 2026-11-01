@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F1E7">
+<title>舒尔特方格 · RK的小游戏合集</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%232B2533'/%3E%3Cpath d='M16 6l3 7 7 3-7 3-3 7-3-7-7-3 7-3z' fill='%23C9A96A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/css/site.css">
+<style>
+  .sc-board {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    width: min(320px, 84vw);
+    aspect-ratio: 1;
+  }
+  .sc-cell {
+    display: grid;
+    place-items: center;
+    padding: 0;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 20px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: background .12s ease, border-color .12s ease, color .12s ease;
+  }
+  .sc-cell:hover { border-color: var(--accent); color: var(--accent); }
+  .sc-cell.done { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); cursor: default; }
+  .sc-cell.wrong { animation: sc-shake .22s ease; }
+  @keyframes sc-shake {
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+  }
+</style>
+</head>
+<body>
+
+<script src="../assets/js/sfx.js"></script>
+<script src="../assets/js/game-kit.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var N = 5, TOTAL = N * N;
+
+  var g = GameKit.mount({
+    id: "schulte",
+    title: "舒尔特方格",
+    tag: "SCHULTE",
+    accent: "#6B7A8F",
+    tip: "从 1 开始，按顺序点到 25 · 眼睛可以看中间，用余光找",
+    hud: [
+      { id: "prog", label: "进度", value: "0 / 25" },
+      { id: "time", label: "用时", value: "0.0" },
+      { id: "best", label: "最好", value: "—" }
+    ],
+    actions: [{ id: "restart", label: "重开" }],
+    stage: '<div class="sc-board" id="board"></div>'
+  });
+
+  var boardEl = g.$("#board");
+  var next = 1;
+  var started = 0;
+  var timerId = null;
+  var running = false;
+  var cells = [];
+  var best = parseFloat(g.get("schulte.best", "0")) || 0;
+
+  g.setHud("best", best ? best.toFixed(1) : "—");
+
+  function build() {
+    var nums = [];
+    for (var i = 1; i <= TOTAL; i++) nums.push(i);
+    nums = GameKit.shuffle(nums);
+    boardEl.innerHTML = "";
+    cells = [];
+    for (var j = 0; j < TOTAL; j++) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "sc-cell";
+      b.textContent = String(nums[j]);
+      b.addEventListener("click", onCell);
+      boardEl.appendChild(b);
+      cells.push(b);
+    }
+  }
+
+  function tick() {
+    var ms = Date.now() - started;
+    g.setHud("time", (ms / 1000).toFixed(1));
+  }
+
+  function onCell(e) {
+    if (!running) return;
+    var b = e.currentTarget;
+    if (b.classList.contains("done")) return;
+    var v = parseInt(b.textContent, 10);
+
+    if (v !== next) {
+      g.sound("miss");
+      b.classList.remove("wrong");
+      void b.offsetWidth;
+      b.classList.add("wrong");
+      return;
+    }
+
+    if (!started) {
+      started = Date.now();
+      timerId = setInterval(tick, 100);
+    }
+
+    b.classList.add("done");
+    b.disabled = true;
+    g.sound("tick");
+    next++;
+    g.setHud("prog", (next - 1) + " / " + TOTAL);
+
+    if (next > TOTAL) finish();
+  }
+
+  function finish() {
+    running = false;
+    clearInterval(timerId);
+    timerId = null;
+    var secs = (Date.now() - started) / 1000;
+    var val = Math.round(secs * 10) / 10;
+    g.setHud("time", val.toFixed(1));
+    var record = !best || val < best;
+    if (record) {
+      best = val;
+      g.saveBest(val);
+      g.setHud("best", best.toFixed(1));
+    }
+    g.sound("win");
+    g.show("清完了", "用时 " + val.toFixed(1) + " 秒" + (record ? " · 新纪录" : "") + " · 最好 " + best.toFixed(1) + " 秒", "再来一局");
+  }
+
+  function start() {
+    clearInterval(timerId);
+    timerId = null;
+    started = 0;
+    next = 1;
+    running = true;
+    build();
+    g.setHud("prog", "0 / " + TOTAL);
+    g.setHud("time", "0.0");
+    g.hide();
+  }
+
+  function restart() { start(); }
+
+  g.$("#restart").addEventListener("click", restart);
+  g.onOverlay(restart);
+
+  build();
+  g.show("舒尔特方格", "按 1 到 25 的顺序点，越快越好", "开始");
+})();
+</script>
+
+</body>
+</html>

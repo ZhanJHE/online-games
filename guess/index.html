@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F1E7">
+<title>猜数字 · RK的小游戏合集</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%232B2533'/%3E%3Cpath d='M16 6l3 7 7 3-7 3-3 7-3-7-7-3 7-3z' fill='%23C9A96A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/css/site.css">
+<style>
+  .gs-panel {
+    width: min(320px, 84vw);
+    text-align: center;
+  }
+  .gs-range {
+    font-size: 13px;
+    color: var(--ink-2);
+    letter-spacing: .04em;
+    margin-bottom: 14px;
+  }
+  .gs-range b { color: var(--accent); font-size: 18px; font-family: var(--serif); }
+  .gs-row {
+    display: flex;
+    gap: 10px;
+  }
+  .gs-input {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    background: var(--card);
+    font: inherit;
+    font-size: 18px;
+    color: var(--ink);
+    text-align: center;
+    outline: none;
+  }
+  .gs-input:focus { border-color: var(--accent); }
+  .gs-msg {
+    min-height: 24px;
+    margin-top: 16px;
+    font-size: 15px;
+    color: var(--ink);
+  }
+  .gs-msg.bad { color: #B4626B; }
+  .gs-hist {
+    margin-top: 12px;
+    font-size: 12px;
+    line-height: 1.9;
+    color: var(--ink-3);
+    word-break: break-all;
+  }
+</style>
+</head>
+<body>
+
+<script src="../assets/js/sfx.js"></script>
+<script src="../assets/js/game-kit.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var g = GameKit.mount({
+    id: "guess",
+    title: "猜数字",
+    tag: "GUESS",
+    accent: "#4F6D7A",
+    tip: "1 到 100 之间猜一个数 · 每次会告诉你是大了还是小了",
+    hud: [
+      { id: "tries", label: "次数", value: "0" },
+      { id: "best", label: "最好", value: "—" }
+    ],
+    actions: [{ id: "restart", label: "新的一局" }],
+    stage: '<div class="gs-panel"><div class="gs-range">范围 <b id="lo">1</b> – <b id="hi">100</b></div>' +
+      '<div class="gs-row"><input class="gs-input" id="num" type="number" inputmode="numeric" min="1" max="100" placeholder="输入数字" aria-label="输入你猜的数字">' +
+      '<button class="btn" id="submit" type="button">猜</button></div>' +
+      '<div class="gs-msg" id="msg">先猜一个数</div>' +
+      '<div class="gs-hist" id="hist"></div></div>'
+  });
+
+  var input = g.$("#num");
+  var msg = g.$("#msg");
+  var hist = g.$("#hist");
+  var lo = g.$("#lo");
+  var hi = g.$("#hi");
+  var secret = 0;
+  var tries = 0;
+  var low = 1, high = 100;
+  var over = false;
+  var guesses = [];
+  var best = parseInt(g.get("guess.best", "0"), 10) || 0;
+
+  g.setHud("best", best ? best : "—");
+
+  function newRound() {
+    secret = 1 + Math.floor(Math.random() * 100);
+    tries = 0;
+    low = 1;
+    high = 100;
+    over = false;
+    guesses = [];
+    g.setHud("tries", 0);
+    lo.textContent = "1";
+    hi.textContent = "100";
+    msg.className = "gs-msg";
+    msg.textContent = "先猜一个数";
+    hist.textContent = "";
+    input.value = "";
+    input.disabled = false;
+    g.hide();
+    input.focus();
+  }
+
+  function submit() {
+    if (over) return;
+    var v = parseInt(input.value, 10);
+    if (!v || v < 1 || v > 100) {
+      g.sound("miss");
+      msg.className = "gs-msg bad";
+      msg.textContent = "请输入 1 到 100 的整数";
+      return;
+    }
+
+    tries++;
+    g.setHud("tries", tries);
+    guesses.push(v + (v < secret ? " 小了" : v > secret ? " 大了" : " 中了"));
+    hist.textContent = guesses.join(" · ");
+    input.value = "";
+    input.focus();
+
+    if (v < secret) {
+      g.sound("tick");
+      low = Math.max(low, v + 1);
+      msg.className = "gs-msg";
+      msg.textContent = "小了，再大一点";
+    } else if (v > secret) {
+      g.sound("tick");
+      high = Math.min(high, v - 1);
+      msg.className = "gs-msg";
+      msg.textContent = "大了，再小一点";
+    } else {
+      over = true;
+      input.disabled = true;
+      g.sound("win");
+      if (!best || tries < best) {
+        best = tries;
+        g.saveBest(best);
+        g.setHud("best", best);
+      }
+      msg.className = "gs-msg";
+      msg.textContent = "猜中了，就是 " + secret;
+      g.show("猜中了", "用了 " + tries + " 次 · 最好 " + best + " 次", "再来一局");
+      return;
+    }
+    lo.textContent = String(low);
+    hi.textContent = String(high);
+  }
+
+  g.$("#submit").addEventListener("click", submit);
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") submit();
+  });
+  g.$("#restart").addEventListener("click", newRound);
+  g.onOverlay(newRound);
+
+  newRound();
+})();
+</script>
+
+</body>
+</html>

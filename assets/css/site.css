@@ -209,6 +209,89 @@ a, button { -webkit-tap-highlight-color: transparent; }
 .home-foot a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--line); }
 .home-foot a:hover { color: var(--accent); border-color: var(--accent); }
 
+/* 首页搜索与分类 */
+
+.home-main { width: 100%; }
+
+.home-tools {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  transition: border-color .16s ease;
+}
+.search-box:focus-within { border-color: var(--accent); }
+.search-box svg { width: 16px; height: 16px; flex: none; color: var(--ink-3); }
+.search-box input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  padding: 11px 0;
+  outline: none;
+}
+.search-box input::placeholder { color: var(--ink-3); }
+
+.cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.cat {
+  appearance: none;
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: .04em;
+  color: var(--ink-2);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: color .16s ease, border-color .16s ease, background .16s ease;
+}
+.cat:hover { border-color: var(--accent); color: var(--accent); }
+.cat[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.find-hint {
+  margin: -6px 0 14px;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: .04em;
+  color: var(--ink-3);
+}
+.find-hint[hidden] { display: none; }
+
+.empty {
+  padding: 30px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-3);
+  letter-spacing: .04em;
+}
+.empty[hidden] { display: none; }
+
 /* ---------------- 游戏页外壳 ---------------- */
 
 .page--game {

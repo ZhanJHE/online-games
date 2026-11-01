@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F1E7">
+<title>乒乓 · RK的小游戏合集</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%232B2533'/%3E%3Cpath d='M16 6l3 7 7 3-7 3-3 7-3-7-7-3 7-3z' fill='%23C9A96A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/css/site.css">
+<style>
+  #board {
+    display: block;
+    width: min(360px, 86vw);
+    height: auto;
+    aspect-ratio: 360 / 480;
+    background: #FBF7EF;
+    touch-action: none;
+    cursor: none;
+  }
+</style>
+</head>
+<body>
+
+<script src="../assets/js/sfx.js"></script>
+<script src="../assets/js/game-kit.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var W = 360, H = 480;
+  var PW = 8, PH = 70, MARGIN = 14;
+  var R = 6;
+
+  var g = GameKit.mount({
+    id: "pong",
+    title: "乒乓",
+    tag: "PONG",
+    accent: "#5C7A6B",
+    tip: "↑ ↓ / W S 或拖动移动挡板 · 先到 7 分赢",
+    hud: [
+      { id: "you", label: "你", value: "0" },
+      { id: "ai", label: "电脑", value: "0" }
+    ],
+    actions: [{ id: "restart", label: "重开" }],
+    stage: '<canvas id="board" width="360" height="480" aria-label="乒乓游戏区"></canvas>'
+  });
+
+  var cv = g.$("#board");
+  var c = GameKit.canvas(cv, W, H);
+  var ctx = c.ctx;
+
+  var playerY = (H - PH) / 2;
+  var aiY = (H - PH) / 2;
+  var ball = { x: W / 2, y: H / 2, vx: 0, vy: 0 };
+  var you = 0, ai = 0;
+  var running = false, ended = false;
+  var serveTimer = 0;
+  var keys = { up: false, down: false };
+
+  function serve(dir) {
+    ball.x = W / 2;
+    ball.y = H / 2;
+    var ang = (Math.random() * 0.5 - 0.25);
+    ball.vx = dir * 0.34 * Math.cos(ang);
+    ball.vy = 0.34 * Math.sin(ang);
+  }
+
+  function reset() {
+    you = 0; ai = 0;
+    playerY = (H - PH) / 2;
+    aiY = (H - PH) / 2;
+    serve(Math.random() < 0.5 ? 1 : -1);
+    g.setHud("you", 0);
+    g.setHud("ai", 0);
+    ended = false;
+    g.hide();
+    draw();
+  }
+
+  function start() {
+    reset();
+    running = true;
+  }
+
+  function point(who) {
+    if (who === "you") { you++; g.setHud("you", you); g.sound("eat"); }
+    else { ai++; g.setHud("ai", ai); g.sound("miss"); }
+    if (you >= 7 || ai >= 7) {
+      running = false;
+      ended = true;
+      g.sound(you >= 7 ? "win" : "lose");
+      g.show(you >= 7 ? "你赢了" : "电脑赢了", "比分 " + you + " : " + ai, "再来一局");
+      return;
+    }
+    ball.vx = 0;
+    ball.vy = 0;
+    serveTimer = 700;
+  }
+
+  function step(dt) {
+    if (serveTimer > 0) {
+      serveTimer -= dt;
+      if (serveTimer <= 0) serve(you > ai ? 1 : -1);
+      return;
+    }
+
+    ball.x += ball.vx * dt;
+    ball.y += ball.vy * dt;
+
+    if (ball.y - R < 0) { ball.y = R; ball.vy = Math.abs(ball.vy); }
+    if (ball.y + R > H) { ball.y = H - R; ball.vy = -Math.abs(ball.vy); }
+
+    if (ball.vx < 0 && ball.x - R < MARGIN + PW && ball.x > MARGIN &&
+        ball.y > playerY - R && ball.y < playerY + PH + R) {
+      ball.x = MARGIN + PW + R;
+      ball.vx = Math.abs(ball.vx) * 1.04;
+      ball.vy += ((ball.y - (playerY + PH / 2)) / (PH / 2)) * 0.12;
+      g.sound("tick");
+    }
+    if (ball.vx > 0 && ball.x + R > W - MARGIN - PW && ball.x < W - MARGIN &&
+        ball.y > aiY - R && ball.y < aiY + PH + R) {
+      ball.x = W - MARGIN - PW - R;
+      ball.vx = -Math.abs(ball.vx) * 1.04;
+      ball.vy += ((ball.y - (aiY + PH / 2)) / (PH / 2)) * 0.12;
+      g.sound("tick");
+    }
+
+    if (ball.x + R < 0) return point("ai");
+    if (ball.x - R > W) return point("you");
+
+    var target = ball.y - PH / 2;
+    var diff = target - aiY;
+    var speed = 0.24 * dt;
+    aiY += Math.max(-speed, Math.min(speed, diff));
+    aiY = Math.max(0, Math.min(H - PH, aiY));
+  }
+
+  function draw() {
+    ctx.fillStyle = "#FBF7EF";
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = "rgba(43,37,51,.18)";
+    ctx.setLineDash([6, 8]);
+    ctx.beginPath();
+    ctx.moveTo(W / 2, 0);
+    ctx.lineTo(W / 2, H);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = "#5C7A6B";
+    ctx.fillRect(MARGIN, playerY, PW, PH);
+    ctx.fillStyle = "#B08D57";
+    ctx.fillRect(W - MARGIN - PW, aiY, PW, PH);
+
+    ctx.fillStyle = "#2B2533";
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, R, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  GameKit.loop(function (dt) {
+    if (running) {
+      if (keys.up) playerY -= 0.42 * dt;
+      if (keys.down) playerY += 0.42 * dt;
+      playerY = Math.max(0, Math.min(H - PH, playerY));
+      step(dt);
+    }
+    draw();
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") { keys.up = true; e.preventDefault(); }
+    if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") { keys.down = true; e.preventDefault(); }
+  });
+  document.addEventListener("keyup", function (e) {
+    if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") keys.up = false;
+    if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") keys.down = false;
+  });
+
+  cv.addEventListener("pointermove", function (e) {
+    var rect = cv.getBoundingClientRect();
+    var y = (e.clientY - rect.top) / rect.height * H;
+    playerY = Math.max(0, Math.min(H - PH, y - PH / 2));
+  });
+
+  function restart() {
+    g.hide();
+    start();
+  }
+
+  g.$("#restart").addEventListener("click", restart);
+  g.onOverlay(restart);
+
+  reset();
+  g.show("乒乓", "先到 7 分 · 球会越来越快", "开始");
+})();
+</script>
+
+</body>
+</html>

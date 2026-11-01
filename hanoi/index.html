@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F1E7">
+<title>汉诺塔 · RK的小游戏合集</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%232B2533'/%3E%3Cpath d='M16 6l3 7 7 3-7 3-3 7-3-7-7-3 7-3z' fill='%23C9A96A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/css/site.css">
+<style>
+  .hn-board {
+    display: flex;
+    gap: 6px;
+    width: min(340px, 88vw);
+    height: min(280px, 68vw);
+  }
+  .hn-peg {
+    position: relative;
+    flex: 1;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+  .hn-peg::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 10px;
+    width: 6px;
+    height: 78%;
+    transform: translateX(-50%);
+    background: #D6C7AE;
+    border-radius: 3px;
+  }
+  .hn-peg::after {
+    content: "";
+    position: absolute;
+    left: 4%;
+    right: 4%;
+    bottom: 0;
+    height: 10px;
+    background: #B98A5E;
+    border-radius: 2px;
+  }
+  .hn-peg.pick::before { background: var(--accent); }
+  .hn-disk {
+    position: absolute;
+    left: 50%;
+    height: 18px;
+    transform: translateX(-50%);
+    border-radius: 3px;
+    background: var(--accent);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, .24);
+    transition: bottom .16s ease;
+  }
+  .hn-disk:nth-child(odd) { filter: brightness(1.08); }
+</style>
+</head>
+<body>
+
+<script src="../assets/js/sfx.js"></script>
+<script src="../assets/js/game-kit.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var COUNT = 5;
+
+  var g = GameKit.mount({
+    id: "hanoi",
+    title: "汉诺塔",
+    tag: "HANOI",
+    accent: "#6A7B5E",
+    tip: "点一根柱子拿起最上面的盘，再点另一根放下 · 大盘不能压小盘",
+    hud: [
+      { id: "moves", label: "步数", value: "0" },
+      { id: "best", label: "最好", value: "—" }
+    ],
+    actions: [{ id: "restart", label: "重开" }],
+    stage: '<div class="hn-board" id="board"></div>'
+  });
+
+  var boardEl = g.$("#board");
+  var pegs = [];
+  var pegsEl = [];
+  var selected = -1;
+  var moves = 0;
+  var over = false;
+  var best = parseInt(g.get("hanoi.best", "0"), 10) || 0;
+
+  g.setHud("best", best ? best : "—");
+
+  for (var p = 0; p < 3; p++) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "hn-peg";
+    b.dataset.peg = p;
+    b.setAttribute("aria-label", "第 " + (p + 1) + " 根柱子");
+    b.addEventListener("click", onPeg);
+    boardEl.appendChild(b);
+    pegsEl.push(b);
+  }
+
+  function render() {
+    pegsEl.forEach(function (el, i) {
+      el.className = "hn-peg" + (selected === i ? " pick" : "");
+      var disks = el.querySelectorAll(".hn-disk");
+      for (var d = 0; d < disks.length; d++) disks[d].remove();
+      pegs[i].forEach(function (size, k) {
+        var disk = document.createElement("div");
+        disk.className = "hn-disk";
+        disk.style.width = (28 + size * 12) + "%";
+        disk.style.bottom = (10 + k * 20) + "px";
+        disk.dataset.size = size;
+        el.appendChild(disk);
+      });
+    });
+  }
+
+  function onPeg(e) {
+    if (over) return;
+    var i = parseInt(e.currentTarget.dataset.peg, 10);
+
+    if (selected === -1) {
+      if (!pegs[i].length) { g.sound("miss"); return; }
+      selected = i;
+      g.sound("select");
+      render();
+      return;
+    }
+
+    if (selected === i) {
+      selected = -1;
+      render();
+      return;
+    }
+
+    var from = pegs[selected];
+    var to = pegs[i];
+    var disk = from[from.length - 1];
+    if (!to.length || to[to.length - 1] > disk) {
+      from.pop();
+      to.push(disk);
+      moves++;
+      g.setHud("moves", moves);
+      selected = -1;
+      g.sound("place");
+      render();
+      checkWin();
+    } else {
+      g.sound("miss");
+      selected = -1;
+      render();
+    }
+  }
+
+  function checkWin() {
+    if (pegs[2].length !== COUNT) return;
+    over = true;
+    var record = !best || moves < best;
+    if (record) {
+      best = moves;
+      g.saveBest(moves);
+      g.setHud("best", best);
+    }
+    g.sound("win");
+    g.show("搬完了", "用了 " + moves + " 步" + (record ? " · 新纪录" : "") + " · 最少 31 步", "再来一局");
+  }
+
+  function reset() {
+    pegs = [[], [], []];
+    for (var s = COUNT; s >= 1; s--) pegs[0].push(s);
+    selected = -1;
+    moves = 0;
+    over = false;
+    g.setHud("moves", 0);
+    g.hide();
+    render();
+  }
+
+  g.$("#restart").addEventListener("click", reset);
+  g.onOverlay(reset);
+  reset();
+})();
+</script>
+
+</body>
+</html>
