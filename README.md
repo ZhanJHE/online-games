@@ -1,6 +1,6 @@
 # 小游戏合集
 
-线上地址：<https://zhanjhe.github.io/joke-love-tarot/>
+线上地址：<https://zhanjhe.github.io/online-games/>
 
 7 个网页小游戏，全部纯静态，点开就能玩。没有后端、没有框架、没有构建步骤。
 
@@ -44,7 +44,7 @@ node tools/live-check.js    # 同上，跑线上地址
 
 ## 部署
 
-仓库 `ZhanJHE/joke-love-tarot`，Pages 走 `main` 分支根目录，`git push` 后自动重建。
+仓库 `ZhanJHE/online-games`，Pages 走 `main` 分支根目录，`git push` 后自动重建。
 
 ```powershell
 git add -A

@@ -4,7 +4,7 @@
 const { spawnSync } = require("child_process");
 const path = require("path");
 
-const LIVE = process.argv[2] || "https://zhanjhe.github.io/joke-love-tarot/";
+const LIVE = process.argv[2] || "https://zhanjhe.github.io/online-games/";
 const script = path.join(__dirname, "check-pages.js");
 
 const r = spawnSync(process.execPath, [script, LIVE], { stdio: "inherit" });

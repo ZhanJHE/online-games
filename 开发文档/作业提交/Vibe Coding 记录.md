@@ -37,7 +37,7 @@
 
 **我说的**：
 
-> https://github.com/ZhanJHE/joke-love-tarot.git，这是我的仓库，帮我传上去，配置一下
+> https://github.com/ZhanJHE/online-games.git，这是我的仓库，帮我传上去，配置一下
 
 **AI 做的**：推代码、开 GitHub Pages、把仓库描述和主页链接填好、给仓库加了几个 topic、生成了微信分享用的缩略图，然后自己打开线上地址跑了 5 个页面截图给我看。
 

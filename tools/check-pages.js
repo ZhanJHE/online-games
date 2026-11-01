@@ -35,26 +35,25 @@ const CASES = [
       const links = await ev("document.querySelectorAll('a.card').length");
       if (links !== 8) throw new Error("可点卡片数 " + links + "，应为 8");
       const last = await ev("document.querySelectorAll('.card')[7].getAttribute('href')");
-      if (!/about/.test(last)) throw new Error("右下角不是关于：" + last);
+      if (!/sponsor/.test(last)) throw new Error("右下角不是赞助作者：" + last);
       const names = await ev("Array.from(document.querySelectorAll('.card-name')).map(e=>e.textContent).join(' / ')");
       console.log("   卡片：" + names);
     }
   },
   {
-    name: "02-about",
-    path: "about/",
-    label: "关于",
+    name: "02-sponsor",
+    path: "sponsor/",
+    label: "赞助作者",
     async run(ev) {
-      const prose = await ev("!!document.querySelector('.prose')");
-      if (!prose) throw new Error("缺少正文容器");
-      const links = await ev("document.querySelectorAll('.prose a').length");
-      if (links < 6) throw new Error("正文里的链接偏少：" + links);
-      const qr = await ev("(document.querySelector('.donate-qr')||{}).getAttribute ? document.querySelector('.donate-qr').getAttribute('src') : ''");
+      const line = await ev("document.querySelector('.sponsor-line').textContent");
+      if (!/奶茶/.test(line)) throw new Error("引导语不对：" + line);
+      const qr = await ev("document.querySelector('.sponsor-qr').getAttribute('src')");
       if (!/pay\.png/.test(qr || "")) throw new Error("赞赏码图没挂上");
-      // 图是懒加载的，先滚到它那里再判断有没有真的解码出来
-      await ev("document.querySelector('.donate-qr').scrollIntoView({block:'center'})");
-      await sleep(700);
-      const loaded = await ev("(function(){var i=document.querySelector('.donate-qr');return !!(i && i.complete && i.naturalWidth>0);})()");
+      await sleep(500);
+      const loaded = await ev("(function(){var i=document.querySelector('.sponsor-qr');return !!(i && i.complete && i.naturalWidth>0);})()");
+      if (!loaded) throw new Error("赞赏码图没加载出来");
+      const prose = await ev("!!document.querySelector('.prose')");
+      if (prose) throw new Error("正文没删干净");
       if (!loaded) throw new Error("赞赏码图没加载出来");
     }
   },
@@ -264,14 +263,7 @@ async function main() {
       if (!ok) failures++;
     }
 
-    // 关于页滚到底，确认赞赏码位置
-    await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 900, deviceScaleFactor: 1, mobile: true });
-    await send("Page.navigate", { url: url("about/") });
-    await sleep(1200);
-    await ev("window.scrollTo(0, document.body.scrollHeight)");
-    await sleep(400);
-    await shot("02b-about-donate");
-    console.log("✓ 关于页底部截图");
+
 
     // 首页另截一张桌面尺寸
     await send("Emulation.setDeviceMetricsOverride", { width: 1200, height: 900, deviceScaleFactor: 1, mobile: false });
