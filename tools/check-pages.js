@@ -119,8 +119,11 @@ const CASES = [
       if (!/奶茶/.test(line)) throw new Error("引导语不对：" + line);
       const qr = await ev("document.querySelector('.sponsor-qr').getAttribute('src')");
       if (!/pay\.png/.test(qr || "")) throw new Error("赞赏码图没挂上");
-      await sleep(500);
-      const loaded = await ev("(function(){var i=document.querySelector('.sponsor-qr');return !!(i && i.complete && i.naturalWidth>0);})()");
+      let loaded = false;
+      for (let i = 0; i < 16 && !loaded; i++) {
+        await sleep(250);
+        loaded = await ev("(function(){var i=document.querySelector('.sponsor-qr');return !!(i && i.complete && i.naturalWidth>0);})()");
+      }
       if (!loaded) throw new Error("赞赏码图没加载出来");
       const prose = await ev("!!document.querySelector('.prose')");
       if (prose) throw new Error("正文没删干净");
