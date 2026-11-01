@@ -21,8 +21,8 @@
 ## 目录
 
 ```
-index.html        首页，8 个卡片（7 个游戏 + 1 个「更多在路上」占位）
-about/            关于（暂时停用）
+index.html        首页，8 个卡片（7 个游戏 + 1 个「赞助作者」）
+sponsor/          赞助作者：一句引导语 + 赞赏码
 tetris/ wheel/ tarot/ 2048/ memory/ snake/ minesweeper/
 assets/           站点公共样式、图标、分享缩略图
 tarot/assets/     塔罗页自己的样式和脚本
